@@ -1,0 +1,199 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { colors, typography, spacing, borderRadius } from '../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import Header from '../components/Header';
+
+type RootStackParamList = {
+  MainTabs: undefined;
+  Profile: undefined;
+};
+
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
+const RewardsScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
+
+  return (
+    <LinearGradient
+      colors={['#1D2024', '#6E7A8A']}
+      style={styles.container}
+    >
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Header />
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Digicoin</Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>Scratch Cards</Text>
+          
+          <View style={styles.scratchCard}>
+            <View style={styles.scratchHeader}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.rewardIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.rewardValue}>+5.00</Text>
+            </View>
+            <View style={styles.scratchContent}>
+              <Image source={require('../assets/logo.png')} style={styles.clockIcon} />
+              <View>
+                <Text style={styles.scratchTitle}>Win gift cards and Digicoin</Text>
+                <Text style={styles.scratchSubtext}>60 min off to unlock</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.sectionTitle}>Draw</Text>
+
+          <View style={styles.drawCard}>
+            <View style={styles.drawContent}>
+              <View>
+                <View style={styles.drawHeader}>
+                  <Image
+                    source={require('../assets/logo.png')}
+                    style={styles.rewardIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.rewardValue}>+2.00</Text>
+                </View>
+                <Text style={styles.drawTitle}>Macbook M4 Pro</Text>
+                <Text style={styles.drawDescription}>Buy tickets to get the chance to win a Macbook M4 Pro</Text>
+                <TouchableOpacity style={styles.drawButton}>
+                  <Text style={styles.drawButtonText}>Enter Draw</Text>
+                </TouchableOpacity>
+                <Text style={styles.timeLeft}>05h:04m:40s</Text>
+                </View>
+              
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </LinearGradient>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  content: {
+    flex: 1,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  title: {
+    ...typography.logo,
+    textAlign: 'center',
+    color: '#CCCCCC',
+  },
+  sectionTitle: {
+    ...typography.h3,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  scratchCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  scratchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  scratchContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rewardIcon: {
+    width: 24,
+    height: 24,
+    marginRight: spacing.xs,
+  },
+  rewardValue: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  clockIcon: {
+    width: 32,
+    height: 32,
+    marginRight: spacing.md,
+  },
+  scratchTitle: {
+    ...typography.body,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  scratchSubtext: {
+    ...typography.caption,
+  },
+  drawCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  drawContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  drawHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  drawTitle: {
+    ...typography.h3,
+    marginBottom: spacing.sm,
+  },
+  drawDescription: {
+    ...typography.body,
+    marginBottom: spacing.lg,
+  },
+  drawButton: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.round,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  drawButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  timeLeft: {
+    ...typography.caption,
+  },
+  productImage: {
+    width: 120,
+    height: 120,
+    marginLeft: spacing.lg,
+  },
+});
+
+export default RewardsScreen; 
