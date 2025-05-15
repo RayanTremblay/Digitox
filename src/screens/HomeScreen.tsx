@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import CircularProgress from '../components/CircularProgress';
+import { getDigiStats } from '../utils/storage';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -17,7 +18,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const timeSpent = 75; // minutes
+  const [timeSpent, setTimeSpent] = useState(0); // minutes
   const dailyGoal = 120; // minutes
 
   // Mock data for the week's progress
@@ -30,6 +31,25 @@ const HomeScreen = () => {
     { day: 'Sat', timeSpent: 0 },
     { day: 'Sun', timeSpent: 0 },
   ];
+
+  useEffect(() => {
+    loadDailyStats();
+  }, []);
+
+  const loadDailyStats = async () => {
+    const stats = await getDigiStats();
+    // Convert seconds to minutes for display
+    setTimeSpent(Math.floor(stats.dailyTimeSaved / 60));
+  };
+
+  // Refresh stats when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDailyStats();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   return (
     <LinearGradient
@@ -48,7 +68,7 @@ const HomeScreen = () => {
           </View>
 
           <View style={styles.detoxCard}>
-            <Text style={styles.detoxTitle}>Times off your phone today</Text>
+            <Text style={styles.detoxTitle}>Time off your phone today</Text>
             <Text style={styles.timeText}>{timeSpent}min</Text>
             <Text style={styles.goalText}>Daily goal: {dailyGoal}min</Text>
             <TouchableOpacity 

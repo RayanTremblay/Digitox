@@ -1,15 +1,11 @@
-import React, { memo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
+import { getDigiStats } from '../utils/storage';
 
 interface StatsModalProps {
   visible: boolean;
   onClose: () => void;
-  stats: {
-    currentBalance: number;
-    totalEarned: number;
-    totalTimeSaved: number;
-  };
 }
 
 const formatLongTime = (seconds: number) => {
@@ -25,70 +21,93 @@ const formatLongTime = (seconds: number) => {
   }
 };
 
-const StatsModal = memo(({ visible, onClose, stats }: StatsModalProps) => (
-  <Modal
-    animationType="slide"
-    transparent={true}
-    visible={visible}
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={[styles.modalContent, styles.statsModalContent]}>
-        <View style={styles.statsHeader}>
-          <Text style={styles.modalTitle}>Your Digicoin Stats</Text>
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={onClose}
-          >
-            <Text style={styles.closeButtonText}>×</Text>
-          </TouchableOpacity>
-        </View>
+const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose }) => {
+  const [stats, setStats] = useState({
+    currentBalance: 0,
+    totalEarned: 0,
+    totalTimeSaved: 0,
+  });
 
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Current Balance</Text>
-            <Text style={styles.statValue}>{stats.currentBalance.toFixed(2)}</Text>
-          </View>
-        </View>
+  useEffect(() => {
+    if (visible) {
+      loadStats();
+    }
+  }, [visible]);
 
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Total Earned</Text>
-            <Text style={styles.statValue}>{stats.totalEarned.toFixed(2)}</Text>
-          </View>
-        </View>
+  const loadStats = async () => {
+    const currentStats = await getDigiStats();
+    setStats({
+      currentBalance: currentStats.balance,
+      totalEarned: currentStats.totalEarned,
+      totalTimeSaved: currentStats.totalTimeSaved,
+    });
+  };
 
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, styles.statsModalContent]}>
+          <View style={styles.statsHeader}>
+            <Text style={styles.modalTitle}>Your Digicoin Stats</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={onClose}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Total Time Saved</Text>
-            <Text style={styles.statValue}>{formatLongTime(stats.totalTimeSaved)}</Text>
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Current Balance</Text>
+              <Text style={styles.statValue}>{stats.currentBalance.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Total Earned</Text>
+              <Text style={styles.statValue}>{stats.totalEarned.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Total Time Saved</Text>
+              <Text style={styles.statValue}>{formatLongTime(stats.totalTimeSaved)}</Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  </Modal>
-));
+    </Modal>
+  );
+};
 
 const styles = StyleSheet.create({
   modalOverlay: {
@@ -114,6 +133,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     marginTop: spacing.lg,
   },
+  modalTitle: {
+    ...typography.h2,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    fontWeight: '600',
+  },
   closeButton: {
     position: 'absolute',
     right: -spacing.md,
@@ -124,13 +150,6 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '600',
-  },
-  modalTitle: {
-    ...typography.h2,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: spacing.xl,
     fontWeight: '600',
   },
   statItem: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, ScrollView, Modal, TouchableWithoutFeedback } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Circle, G } from 'react-native-svg';
 import Header from '../components/Header';
+import { getDigiStats, updateDigiStats } from '../utils/storage';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -26,16 +27,6 @@ const DURATION_OPTIONS = [
   { label: '4 hours', value: 240 * 60 },
 ];
 
-interface StatsModalProps {
-  visible: boolean;
-  onClose: () => void;
-  stats: {
-    currentBalance: number;
-    totalEarned: number;
-    totalTimeSaved: number;
-  };
-}
-
 const formatLongTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -49,71 +40,6 @@ const formatLongTime = (seconds: number) => {
   }
 };
 
-const StatsModal = memo(({ visible, onClose, stats }: StatsModalProps) => (
-  <Modal
-    animationType="slide"
-    transparent={true}
-    visible={visible}
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={[styles.modalContent, styles.statsModalContent]}>
-        <View style={styles.statsHeader}>
-          <Text style={styles.modalTitle}>Your Digicoin Stats</Text>
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={onClose}
-          >
-            <Text style={styles.closeButtonText}>×</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Current Balance</Text>
-            <Text style={styles.statValue}>{stats.currentBalance.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Total Earned</Text>
-            <Text style={styles.statValue}>{stats.totalEarned.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={styles.statIconContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.statIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.statInfo}>
-            <Text style={styles.statLabel}>Total Time Saved</Text>
-            <Text style={styles.statValue}>{formatLongTime(stats.totalTimeSaved)}</Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  </Modal>
-));
-
 const DetoxScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -122,17 +48,9 @@ const DetoxScreen = () => {
   const [earnedDigicoins, setEarnedDigicoins] = useState(0);
   const [showDurationModal, setShowDurationModal] = useState(true);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(60 * 60);
   const [isScreenDark, setIsScreenDark] = useState(false);
   const screenOpacity = useState(new Animated.Value(0))[0];
-
-  // Mock data - In a real app, these would come from a backend/storage
-  const userStats = {
-    currentBalance: 150.88,
-    totalEarned: 892.45,
-    totalTimeSaved: 53460, // in seconds (about 14.85 hours)
-  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -160,7 +78,7 @@ const DetoxScreen = () => {
 
   useEffect(() => {
     Animated.timing(progress, {
-      toValue: timeElapsed / selectedDuration, // Progress based on selected duration
+      toValue: timeElapsed / selectedDuration,
       duration: 1000,
       useNativeDriver: true,
     }).start();
@@ -169,7 +87,6 @@ const DetoxScreen = () => {
   useEffect(() => {
     let screenTimeout: NodeJS.Timeout;
     if (isActive) {
-      // Set timeout to darken screen after 1 minute
       screenTimeout = setTimeout(() => {
         fadeToBlack();
       }, 60000);
@@ -197,8 +114,14 @@ const DetoxScreen = () => {
     setIsActive(true);
   };
 
-  const handleEndDetox = () => {
+  const handleEndDetox = async () => {
     setIsActive(false);
+    
+    // Update stats with earned Digicoins and time
+    if (timeElapsed > 0) {
+      await updateDigiStats(earnedDigicoins, timeElapsed);
+    }
+    
     setTimeElapsed(0);
     setEarnedDigicoins(0);
     navigation.navigate('MainTabs');
@@ -220,7 +143,6 @@ const DetoxScreen = () => {
       useNativeDriver: true,
     }).start(() => {
       setIsScreenDark(false);
-      // Reset the timer for screen darkening
       if (isActive) {
         setTimeout(() => {
           fadeToBlack();
@@ -228,61 +150,6 @@ const DetoxScreen = () => {
       }
     });
   };
-
-  const DurationModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showDurationModal}
-      onRequestClose={() => setShowDurationModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Choose Detox Duration</Text>
-          {DURATION_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={styles.durationOption}
-              onPress={() => handleStartDetox(option.value)}
-            >
-              <Text style={styles.durationText}>{option.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const InstructionsModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showInstructionsModal}
-      onRequestClose={() => setShowInstructionsModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, styles.instructionsModalContent]}>
-          <Text style={styles.modalTitle}>Important Instructions</Text>
-          <Text style={styles.modalInstructionsText}>
-            To ensure accurate tracking of your digital detox time:
-          </Text>
-          <View style={styles.modalInstructionsList}>
-            <Text style={styles.modalInstructionItem}>• Keep the app open and your phone unlocked</Text>
-            <Text style={styles.modalInstructionItem}>• After 1 minute, the screen will dim to save battery</Text>
-            <Text style={styles.modalInstructionItem}>• Due to iOS limitations, we cannot track when the app is closed or the phone is locked</Text>
-            <Text style={styles.modalInstructionItem}>• Your session will end if you close the app or lock your phone</Text>
-            <Text style={styles.modalInstructionItem}>• You'll receive rewards for the time spent in detox until the session ends</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.confirmButton} 
-            onPress={handleConfirmInstructions}
-          >
-            <Text style={styles.confirmButtonText}>I Understand, Start Detox</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <View style={styles.container}>
@@ -385,7 +252,6 @@ const DetoxScreen = () => {
               styles.blackScreen,
               {
                 opacity: screenOpacity,
-                // Allow touch events to pass through when not dark
                 pointerEvents: isScreenDark ? 'auto' : 'none'
               }
             ]}
@@ -394,13 +260,58 @@ const DetoxScreen = () => {
           </Animated.View>
         </TouchableWithoutFeedback>
 
-        <DurationModal />
-        <InstructionsModal />
-        <StatsModal 
-          visible={showStatsModal}
-          onClose={() => setShowStatsModal(false)}
-          stats={userStats}
-        />
+        {/* Duration Selection Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showDurationModal}
+          onRequestClose={() => setShowDurationModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Choose Detox Duration</Text>
+              {DURATION_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.durationOption}
+                  onPress={() => handleStartDetox(option.value)}
+                >
+                  <Text style={styles.durationText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Instructions Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showInstructionsModal}
+          onRequestClose={() => setShowInstructionsModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.instructionsModalContent]}>
+              <Text style={styles.modalTitle}>Important Instructions</Text>
+              <Text style={styles.modalInstructionsText}>
+                To ensure accurate tracking of your digital detox time:
+              </Text>
+              <View style={styles.modalInstructionsList}>
+                <Text style={styles.modalInstructionItem}>• Keep the app open and your phone unlocked</Text>
+                <Text style={styles.modalInstructionItem}>• After 1 minute, the screen will dim to save battery</Text>
+                <Text style={styles.modalInstructionItem}>• Due to iOS limitations, we cannot track when the app is closed or the phone is locked</Text>
+                <Text style={styles.modalInstructionItem}>• Your session will end if you close the app or lock your phone</Text>
+                <Text style={styles.modalInstructionItem}>• You'll receive rewards for the time spent in detox until the session ends</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.confirmButton} 
+                onPress={handleConfirmInstructions}
+              >
+                <Text style={styles.confirmButtonText}>I Understand, Start Detox</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -601,63 +512,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     fontSize: 16,
-  },
-  statsModalContent: {
-    padding: spacing.lg,
-  },
-  statsHeader: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    position: 'relative',
-    marginBottom: spacing.xl,
-    marginTop: spacing.lg,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: -spacing.md,
-    top: -spacing.xl,
-    padding: spacing.sm,
-    zIndex: 1,
-  },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '600',
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  statIcon: {
-    width: 24,
-    height: 24,
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statLabel: {
-    ...typography.body,
-    color: '#E0E0E0',
-    fontSize: 14,
-    marginBottom: spacing.xs,
-  },
-  statValue: {
-    ...typography.h3,
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   blackScreen: {
     ...StyleSheet.absoluteFillObject,

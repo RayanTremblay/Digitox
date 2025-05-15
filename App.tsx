@@ -1,42 +1,22 @@
-import React from 'react';
-import { StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
-import { colors } from './src/theme/theme';
-import { useFonts } from 'expo-font';
-import {
-  Maitree_400Regular,
-  Maitree_600SemiBold,
-  Maitree_700Bold,
-} from '@expo-google-fonts/maitree';
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync();
+import { SplashScreen } from './app/components/SplashScreen';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    Maitree_400Regular,
-    Maitree_600SemiBold,
-    Maitree_700Bold,
-  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  React.useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
+  useEffect(() => {
+    // Simulate some loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
 
-  if (!fontsLoaded) {
-    return null;
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <SplashScreen />;
   }
 
-  return (
-    <>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.background}
-        translucent
-      />
-      <AppNavigator />
-    </>
-  );
+  return <AppNavigator />;
 }

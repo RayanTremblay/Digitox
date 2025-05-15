@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import StatsModal from './StatsModal';
+import { getDigiStats } from '../utils/storage';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -15,54 +16,44 @@ type RootStackParamList = {
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface HeaderProps {
-  showProfile?: boolean;
-  userInitials?: string;
   showBack?: boolean;
+  showProfile?: boolean;
 }
 
-// Mock data - In a real app, these would come from a backend/storage
-const userStats = {
-  currentBalance: 150.88,
-  totalEarned: 892.45,
-  totalTimeSaved: 53460, // in seconds (about 14.85 hours)
-};
-
-const Header = ({ showProfile = true, userInitials = 'RT', showBack = false }: HeaderProps) => {
+const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [stats, setStats] = useState({
+    balance: 0,
+    totalEarned: 0,
+    totalTimeSaved: 0,
+  });
 
-  const handleProfilePress = () => {
-    navigation.navigate('Profile');
-  };
+  useEffect(() => {
+    loadStats();
+  }, []);
 
-  const handleBackPress = () => {
-    navigation.goBack();
+  const loadStats = async () => {
+    const currentStats = await getDigiStats();
+    setStats(currentStats);
   };
 
   return (
     <>
       <View style={[styles.header, showBack && styles.headerWithBack]}>
         {showBack && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={handleBackPress}
+            onPress={() => navigation.goBack()}
           >
             <Icon name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
-        {showProfile && (
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={handleProfilePress}
-          >
-            <Text style={styles.profileText}>{userInitials}</Text>
-          </TouchableOpacity>
-        )}
+
         <TouchableOpacity
           style={[
             styles.balance,
-            showBack && styles.balanceWithBack,
-            !showProfile && !showBack && styles.balanceOnly
+            showBack ? styles.balanceWithBack : !showProfile && styles.balanceOnly
           ]}
           onPress={() => setShowStatsModal(true)}
         >
@@ -71,13 +62,22 @@ const Header = ({ showProfile = true, userInitials = 'RT', showBack = false }: H
             style={styles.coinIcon}
             resizeMode="contain"
           />
-          <Text style={styles.balanceText}>{userStats.currentBalance.toFixed(2)}</Text>
+          <Text style={styles.balanceText}>{stats.balance.toFixed(2)}</Text>
         </TouchableOpacity>
+
+        {showProfile && (
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.profileText}>RT</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
       <StatsModal
         visible={showStatsModal}
         onClose={() => setShowStatsModal(false)}
-        stats={userStats}
       />
     </>
   );
