@@ -6,6 +6,11 @@ import { getDigiStats } from '../utils/storage';
 interface StatsModalProps {
   visible: boolean;
   onClose: () => void;
+  stats?: {
+    currentBalance: number;
+    totalEarned: number;
+    totalTimeSaved: number;
+  };
 }
 
 const formatLongTime = (seconds: number) => {
@@ -21,7 +26,7 @@ const formatLongTime = (seconds: number) => {
   }
 };
 
-const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose }) => {
+const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passedStats }) => {
   const [stats, setStats] = useState({
     currentBalance: 0,
     totalEarned: 0,
@@ -30,9 +35,13 @@ const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose }) => {
 
   useEffect(() => {
     if (visible) {
-      loadStats();
+      if (passedStats) {
+        setStats(passedStats);
+      } else {
+        loadStats();
+      }
     }
-  }, [visible]);
+  }, [visible, passedStats]);
 
   const loadStats = async () => {
     const currentStats = await getDigiStats();

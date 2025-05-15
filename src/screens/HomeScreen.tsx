@@ -21,16 +21,29 @@ const HomeScreen = () => {
   const [timeSpent, setTimeSpent] = useState(0); // minutes
   const dailyGoal = 120; // minutes
 
-  // Mock data for the week's progress
-  const weekData = [
-    { day: 'Mon', timeSpent: 110 },
-    { day: 'Tue', timeSpent: 120 },
-    { day: 'Wed', timeSpent: 85 },
-    { day: 'Thu', timeSpent: 75 }, // Today
-    { day: 'Fri', timeSpent: 0 },
-    { day: 'Sat', timeSpent: 0 },
-    { day: 'Sun', timeSpent: 0 },
-  ];
+  // Get current day and create week data
+  const getCurrentWeekData = () => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date().getDay(); // Get current day (0 = Sunday, 1 = Monday, etc.)
+    
+    console.log('Current day:', days[today]); // Debug log
+    console.log('Current timeSpent:', timeSpent); // Debug log
+    
+    const weekData = days.map((day, index) => {
+      // If it's today, use the actual time spent
+      if (index === today) {
+        console.log(`Setting ${days[today]} time:`, timeSpent); // Debug log
+        return { day, timeSpent: timeSpent };
+      }
+      // For all other days, show empty progress
+      return { day, timeSpent: 0 };
+    });
+    
+    console.log('Week Data:', weekData); // Debug log
+    return weekData;
+  };
+
+  const [weekData, setWeekData] = useState(getCurrentWeekData());
 
   useEffect(() => {
     loadDailyStats();
@@ -38,9 +51,21 @@ const HomeScreen = () => {
 
   const loadDailyStats = async () => {
     const stats = await getDigiStats();
+    console.log('Stats from getDigiStats:', stats); // Debug log
+    
     // Convert seconds to minutes for display
-    setTimeSpent(Math.floor(stats.dailyTimeSaved / 60));
+    const minutes = Math.floor(stats.dailyTimeSaved / 60);
+    console.log('Converted minutes:', minutes); // Debug log
+    
+    setTimeSpent(minutes);
+    // Update week data when time spent changes
+    setWeekData(getCurrentWeekData());
   };
+
+  // Add effect to update week data when timeSpent changes
+  useEffect(() => {
+    setWeekData(getCurrentWeekData());
+  }, [timeSpent]);
 
   // Refresh stats when screen comes into focus
   useEffect(() => {
