@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, ScrollView, Modal, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, ScrollView, Modal, TouchableWithoutFeedback, TextInput } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Circle, G } from 'react-native-svg';
 import Header from '../components/Header';
-import { getDigiStats, updateDigiStats } from '../utils/storage';
+import { getDigiStats, updateDigiStats, checkAndResetDailyStats } from '../utils/storage';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -25,6 +25,7 @@ const DURATION_OPTIONS = [
   { label: '1 hour', value: 60 * 60 },
   { label: '2 hours', value: 120 * 60 },
   { label: '4 hours', value: 240 * 60 },
+  { label: 'Custom duration ⏱️', value: 'custom' },
 ];
 
 const formatLongTime = (seconds: number) => {
@@ -48,9 +49,14 @@ const DetoxScreen = () => {
   const [earnedDigicoins, setEarnedDigicoins] = useState(0);
   const [showDurationModal, setShowDurationModal] = useState(true);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [showCustomDurationModal, setShowCustomDurationModal] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(60 * 60);
+  const [customHours, setCustomHours] = useState('');
+  const [customMinutes, setCustomMinutes] = useState('');
   const [isScreenDark, setIsScreenDark] = useState(false);
   const screenOpacity = useState(new Animated.Value(0))[0];
+  const hoursInputRef = useRef<TextInput>(null);
+  const minutesInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -103,13 +109,47 @@ const DetoxScreen = () => {
       .padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const handleStartDetox = (duration: number) => {
-    setSelectedDuration(duration);
+  const handleStartDetox = (duration: number | string) => {
+    console.log('Selected duration:', duration, typeof duration);
+    
+    if (duration === 'custom') {
+      console.log('Opening custom duration modal');
+      setShowDurationModal(false);
+      setTimeout(() => {
+        setShowCustomDurationModal(true);
+      }, 300);
+      return;
+    }
+    
+    setSelectedDuration(duration as number);
     setShowDurationModal(false);
     setShowInstructionsModal(true);
   };
 
-  const handleConfirmInstructions = () => {
+  const handleCustomDurationConfirm = () => {
+    const hours = parseInt(customHours || '0', 10);
+    const minutes = parseInt(customMinutes || '0', 10);
+    
+    if (hours === 0 && minutes === 0) {
+      // Invalid input
+      return;
+    }
+    
+    const totalSeconds = (hours * 60 * 60) + (minutes * 60);
+    setSelectedDuration(totalSeconds);
+    setShowCustomDurationModal(false);
+    setShowDurationModal(false);
+    setShowInstructionsModal(true);
+    
+    // Reset inputs
+    setCustomHours('');
+    setCustomMinutes('');
+  };
+
+  const handleConfirmInstructions = async () => {
+    // Check for midnight reset before starting
+    await checkAndResetDailyStats();
+    
     setShowInstructionsModal(false);
     setIsActive(true);
   };
@@ -150,6 +190,27 @@ const DetoxScreen = () => {
       }
     });
   };
+
+  // Check for midnight reset during active detox
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (isActive) {
+      intervalId = setInterval(() => {
+        checkAndResetDailyStats().then(async () => {
+          // If a reset happened, we'll get new stats
+          const stats = await getDigiStats();
+          if (stats.dailyTimeSaved === 0 && timeElapsed > 0) {
+            // If dailyTimeSaved is reset to 0 but we have time elapsed,
+            // we need to update the stats with our current session
+            await updateDigiStats(earnedDigicoins, timeElapsed);
+          }
+        });
+      }, 60000); // Check every minute
+    }
+    
+    return () => clearInterval(intervalId);
+  }, [isActive, timeElapsed, earnedDigicoins]);
 
   return (
     <View style={styles.container}>
@@ -272,13 +333,83 @@ const DetoxScreen = () => {
               <Text style={styles.modalTitle}>Choose Detox Duration</Text>
               {DURATION_OPTIONS.map((option) => (
                 <TouchableOpacity
-                  key={option.value}
-                  style={styles.durationOption}
+                  key={option.value.toString()}
+                  style={[
+                    styles.durationOption,
+                    option.value === 'custom' && styles.customDurationOption
+                  ]}
                   onPress={() => handleStartDetox(option.value)}
                 >
                   <Text style={styles.durationText}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Custom Duration Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showCustomDurationModal}
+          onRequestClose={() => setShowCustomDurationModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { zIndex: 999 }]}>
+              <Text style={styles.modalTitle}>Set Custom Duration</Text>
+              
+              <View style={styles.customDurationInputs}>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    ref={hoursInputRef}
+                    style={styles.durationInput}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor="#888"
+                    value={customHours}
+                    onChangeText={setCustomHours}
+                    maxLength={2}
+                    onSubmitEditing={() => minutesInputRef.current?.focus()}
+                  />
+                  <Text style={styles.durationInputLabel}>Hours</Text>
+                </View>
+                
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    ref={minutesInputRef}
+                    style={styles.durationInput}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor="#888"
+                    value={customMinutes}
+                    onChangeText={setCustomMinutes}
+                    maxLength={2}
+                  />
+                  <Text style={styles.durationInputLabel}>Minutes</Text>
+                </View>
+              </View>
+              
+              <View style={styles.customDurationButtons}>
+                <TouchableOpacity
+                  style={[styles.customDurationButton, styles.cancelButton]}
+                  onPress={() => {
+                    console.log('Cancelling custom duration');
+                    setShowCustomDurationModal(false);
+                  }}
+                >
+                  <Text style={styles.customDurationButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.customDurationButton, styles.customConfirmButton]}
+                  onPress={() => {
+                    console.log('Confirming custom duration');
+                    handleCustomDurationConfirm();
+                  }}
+                >
+                  <Text style={styles.customDurationButtonText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -469,6 +600,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.round,
     marginBottom: spacing.md,
   },
+  customDurationOption: {
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
   durationText: {
     ...typography.body,
     color: '#FFFFFF',
@@ -521,6 +657,54 @@ const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  customDurationInputs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
+  },
+  inputContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: spacing.sm,
+  },
+  durationInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: '100%',
+    height: 60,
+    borderRadius: borderRadius.md,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  durationInputLabel: {
+    ...typography.body,
+    color: '#CCCCCC',
+    fontSize: 14,
+  },
+  customDurationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  customDurationButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    marginHorizontal: spacing.xs,
+  },
+  cancelButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  customConfirmButton: {
+    backgroundColor: colors.primary,
+  },
+  customDurationButtonText: {
+    ...typography.body,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

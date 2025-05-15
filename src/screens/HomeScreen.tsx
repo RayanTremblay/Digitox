@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, TextInput, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import CircularProgress from '../components/CircularProgress';
-import { getDigiStats } from '../utils/storage';
+import { getDigiStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, resetAllStatsToZero } from '../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -16,30 +18,42 @@ type RootStackParamList = {
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
+// Storage key for daily goal
+const DAILY_GOAL_KEY = '@digitox_daily_goal';
+
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [timeSpent, setTimeSpent] = useState(0); // minutes
-  const dailyGoal = 120; // minutes
+  const [weekProgress, setWeekProgress] = useState<WeeklyProgress>({ 
+    Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 
+  });
+  const [dailyGoal, setDailyGoal] = useState(120); // minutes
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [newGoalValue, setNewGoalValue] = useState('');
 
   // Get current day and create week data
   const getCurrentWeekData = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date().getDay(); // Get current day (0 = Sunday, 1 = Monday, etc.)
+    const now = new Date();
+    const today = now.getDay(); // Get current day (0 = Sunday, 1 = Monday, etc.)
     
-    console.log('Current day:', days[today]); // Debug log
-    console.log('Current timeSpent:', timeSpent); // Debug log
+    console.log('Current Date:', now.toISOString()); 
+    console.log('Current day of week:', today);
+    console.log('Current day name:', days[today]); 
+    console.log('Week progress data:', weekProgress); 
     
+    // Map the days to display format
     const weekData = days.map((day, index) => {
-      // If it's today, use the actual time spent
-      if (index === today) {
-        console.log(`Setting ${days[today]} time:`, timeSpent); // Debug log
-        return { day, timeSpent: timeSpent };
-      }
-      // For all other days, show empty progress
-      return { day, timeSpent: 0 };
+      // Use the stored progress for each day
+      const dayProgress = weekProgress[day as keyof WeeklyProgress];
+      
+      // If it's today, use the most up-to-date time value
+      const timeValue = index === today ? timeSpent : dayProgress;
+      
+      console.log(`Day ${day} progress:`, timeValue); 
+      return { day, timeSpent: timeValue };
     });
     
-    console.log('Week Data:', weekData); // Debug log
     return weekData;
   };
 
@@ -47,25 +61,67 @@ const HomeScreen = () => {
 
   useEffect(() => {
     loadDailyStats();
+    loadDailyGoal();
   }, []);
 
   const loadDailyStats = async () => {
+    // Check for midnight reset first
+    await checkAndResetDailyStats();
+    
+    // Load daily stats
     const stats = await getDigiStats();
     console.log('Stats from getDigiStats:', stats); // Debug log
     
     // Convert seconds to minutes for display
     const minutes = Math.floor(stats.dailyTimeSaved / 60);
     console.log('Converted minutes:', minutes); // Debug log
-    
     setTimeSpent(minutes);
-    // Update week data when time spent changes
-    setWeekData(getCurrentWeekData());
+    
+    // Load weekly progress
+    const progress = await getWeeklyProgress();
+    console.log('Weekly progress:', progress); // Debug log
+    setWeekProgress(progress);
   };
 
-  // Add effect to update week data when timeSpent changes
+  const loadDailyGoal = async () => {
+    try {
+      const savedGoal = await AsyncStorage.getItem(DAILY_GOAL_KEY);
+      if (savedGoal !== null) {
+        setDailyGoal(parseInt(savedGoal, 10));
+      }
+    } catch (error) {
+      console.error('Error loading daily goal:', error);
+    }
+  };
+
+  const handleSaveGoal = async () => {
+    try {
+      // Parse and validate the new goal value
+      const goalValue = parseInt(newGoalValue, 10);
+      if (isNaN(goalValue) || goalValue <= 0) {
+        console.error('Invalid goal value');
+        return;
+      }
+      
+      // Save the new goal
+      await AsyncStorage.setItem(DAILY_GOAL_KEY, goalValue.toString());
+      setDailyGoal(goalValue);
+      setShowGoalModal(false);
+      
+      // Reset the input
+      setNewGoalValue('');
+      
+      // Update week data with new goal
+      setWeekData(getCurrentWeekData());
+    } catch (error) {
+      console.error('Error saving daily goal:', error);
+    }
+  };
+
+  // Add effect to update week data when timeSpent or weekProgress changes
   useEffect(() => {
     setWeekData(getCurrentWeekData());
-  }, [timeSpent]);
+  }, [timeSpent, weekProgress, dailyGoal]);
 
   // Refresh stats when screen comes into focus
   useEffect(() => {
@@ -75,6 +131,61 @@ const HomeScreen = () => {
 
     return unsubscribe;
   }, [navigation]);
+  
+  // Check for midnight reset every minute when app is active
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      checkAndResetDailyStats().then(() => {
+        loadDailyStats();
+      });
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Add this function to simulate date change
+  const simulateDateChange = async (dayOfWeek: number) => {
+    try {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      
+      // Create a date for the selected day
+      const now = new Date();
+      const targetDate = new Date(now);
+      
+      // Set the date to the selected day
+      const currentDay = now.getDay();
+      const daysToAdd = (dayOfWeek - currentDay + 7) % 7;
+      
+      if (daysToAdd === 0) {
+        // If today is already the selected day, change the time to 1:00 AM
+        targetDate.setHours(1, 0, 0, 0);
+      } else {
+        // Otherwise, add days to reach the selected day
+        targetDate.setDate(now.getDate() + daysToAdd);
+        targetDate.setHours(1, 0, 0, 0); // 1:00 AM on the selected day
+      }
+      
+      console.log(`Simulating date change to ${days[dayOfWeek]}: ${targetDate.toISOString()}`);
+      
+      // Change the last reset date to the day before the target date
+      const lastResetDate = new Date(targetDate);
+      lastResetDate.setDate(lastResetDate.getDate() - 1);
+      
+      // Save this as the last reset date
+      await AsyncStorage.setItem('@digitox_last_reset_date', lastResetDate.toISOString());
+      
+      // Force reset check
+      await checkAndResetDailyStats();
+      
+      // Reload stats
+      await loadDailyStats();
+      
+      Alert.alert("Date Changed", `Simulated date change to ${days[dayOfWeek]}`);
+    } catch (error) {
+      console.error("Error simulating date change:", error);
+      Alert.alert("Error", "Failed to simulate date change");
+    }
+  };
 
   return (
     <LinearGradient
@@ -95,7 +206,13 @@ const HomeScreen = () => {
           <View style={styles.detoxCard}>
             <Text style={styles.detoxTitle}>Time off your phone today</Text>
             <Text style={styles.timeText}>{timeSpent}min</Text>
-            <Text style={styles.goalText}>Daily goal: {dailyGoal}min</Text>
+            <TouchableOpacity 
+              style={styles.goalButton}
+              onPress={() => setShowGoalModal(true)}
+            >
+              <Text style={styles.goalText}>Daily goal: {dailyGoal}min</Text>
+              <Icon name="pencil" size={16} color={colors.primary} style={styles.editIcon} />
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.startButton}
               onPress={() => navigation.navigate('Detox')}
@@ -161,8 +278,97 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
+          
+          {/* Reset button for testing */}
+          <TouchableOpacity 
+            style={styles.resetButton}
+            onPress={() => {
+              Alert.alert(
+                "Reset All Stats",
+                "This will reset all your stats to zero for testing purposes. Are you sure?",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel"
+                  },
+                  { 
+                    text: "Reset", 
+                    onPress: async () => {
+                      await resetAllStatsToZero();
+                      loadDailyStats(); // Reload stats after reset
+                    },
+                    style: "destructive"
+                  }
+                ]
+              );
+            }}
+          >
+            <Text style={styles.resetButtonText}>Reset All Stats (Testing)</Text>
+          </TouchableOpacity>
+          
+          {/* Force Date Change button for testing */}
+          <TouchableOpacity 
+            style={styles.forceDateButton}
+            onPress={() => {
+              Alert.alert(
+                "Test Date Change",
+                "Select a day to simulate:",
+                [
+                  { text: "Sunday", onPress: () => simulateDateChange(0) },
+                  { text: "Monday", onPress: () => simulateDateChange(1) },
+                  { text: "Tuesday", onPress: () => simulateDateChange(2) },
+                  { text: "Wednesday", onPress: () => simulateDateChange(3) },
+                  { text: "Thursday", onPress: () => simulateDateChange(4) },
+                  { text: "Friday", onPress: () => simulateDateChange(5) },
+                  { text: "Saturday", onPress: () => simulateDateChange(6) },
+                  { text: "Cancel", style: "cancel" }
+                ]
+              );
+            }}
+          >
+            <Text style={styles.resetButtonText}>Simulate Day Change</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Daily Goal Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showGoalModal}
+        onRequestClose={() => setShowGoalModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Set Daily Goal</Text>
+            
+            <TextInput
+              style={styles.goalInput}
+              placeholder="Enter minutes"
+              keyboardType="number-pad"
+              value={newGoalValue}
+              onChangeText={setNewGoalValue}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowGoalModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveGoal}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -207,9 +413,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
   },
+  goalButton: {
+    backgroundColor: colors.surfaceLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.round,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   goalText: {
     ...typography.caption,
-    marginBottom: spacing.lg,
+    color: colors.primary,
+    fontWeight: '500',
   },
   startButton: {
     backgroundColor: colors.primary,
@@ -318,6 +537,85 @@ const styles = StyleSheet.create({
   rewardButtonText: {
     ...typography.caption,
     color: colors.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '80%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  goalInput: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    width: '100%',
+    color: colors.text,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.round,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.surfaceLight,
+    marginRight: spacing.sm,
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+    marginLeft: spacing.sm,
+  },
+  modalButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  editIcon: {
+    marginLeft: spacing.xs,
+  },
+  resetButton: {
+    backgroundColor: '#FF4444',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  forceDateButton: {
+    backgroundColor: '#00A0B0',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    marginBottom: spacing.xl,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
   },
 });
 
