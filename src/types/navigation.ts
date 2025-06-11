@@ -5,4 +5,6 @@ export type RootStackParamList = {
   Home: undefined;
   Market: undefined;
   Rewards: undefined;
+  Privacy: undefined;
+  HelpSupport: undefined;
 }; 

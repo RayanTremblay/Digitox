@@ -7,9 +7,15 @@ interface CircularProgressProps {
   size: number;
   progress: number; // 0 to 1
   strokeWidth?: number;
+  progressColor?: string; // Add support for custom progress color
 }
 
-const CircularProgress = ({ size, progress, strokeWidth = 3 }: CircularProgressProps) => {
+const CircularProgress = ({ 
+  size, 
+  progress, 
+  strokeWidth = 3,
+  progressColor = colors.primary // Default to primary color
+}: CircularProgressProps) => {
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,7 +45,7 @@ const CircularProgress = ({ size, progress, strokeWidth = 3 }: CircularProgressP
             cx={center}
             cy={center}
             r={radius}
-            stroke={colors.primary}
+            stroke={progressColor}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -56,7 +62,7 @@ const CircularProgress = ({ size, progress, strokeWidth = 3 }: CircularProgressP
               cx={center}
               cy={center}
               r={radius}
-              fill={colors.primary}
+              fill={progressColor}
             />
             {/* Checkmark */}
             <Path

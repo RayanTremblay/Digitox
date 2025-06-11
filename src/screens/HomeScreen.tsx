@@ -6,9 +6,12 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import CircularProgress from '../components/CircularProgress';
+import ProgressBar from '../components/ProgressBar';
 import { getDigiStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, resetAllStatsToZero } from '../utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LoginScreen from './LoginScreen';
+
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -21,6 +24,9 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 // Storage key for daily goal
 const DAILY_GOAL_KEY = '@digitox_daily_goal';
 
+// Constants for boost feature
+const BOOST_THRESHOLD_MINUTES = 180; // 3 hours
+
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [timeSpent, setTimeSpent] = useState(0); // minutes
@@ -30,6 +36,7 @@ const HomeScreen = () => {
   const [dailyGoal, setDailyGoal] = useState(120); // minutes
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [newGoalValue, setNewGoalValue] = useState('');
+  const [boostMultiplier, setBoostMultiplier] = useState(1); // Default multiplier is 1x
 
   // Get current day and create week data
   const getCurrentWeekData = () => {
@@ -77,6 +84,13 @@ const HomeScreen = () => {
     console.log('Converted minutes:', minutes); // Debug log
     setTimeSpent(minutes);
     
+    // Update boost multiplier based on time spent
+    if (minutes >= BOOST_THRESHOLD_MINUTES) {
+      setBoostMultiplier(2);
+    } else {
+      setBoostMultiplier(1);
+    }
+    
     // Load weekly progress
     const progress = await getWeeklyProgress();
     console.log('Weekly progress:', progress); // Debug log
@@ -112,7 +126,7 @@ const HomeScreen = () => {
       setNewGoalValue('');
       
       // Update week data with new goal
-      setWeekData(getCurrentWeekData());
+    setWeekData(getCurrentWeekData());
     } catch (error) {
       console.error('Error saving daily goal:', error);
     }
@@ -143,49 +157,8 @@ const HomeScreen = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Add this function to simulate date change
-  const simulateDateChange = async (dayOfWeek: number) => {
-    try {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      
-      // Create a date for the selected day
-      const now = new Date();
-      const targetDate = new Date(now);
-      
-      // Set the date to the selected day
-      const currentDay = now.getDay();
-      const daysToAdd = (dayOfWeek - currentDay + 7) % 7;
-      
-      if (daysToAdd === 0) {
-        // If today is already the selected day, change the time to 1:00 AM
-        targetDate.setHours(1, 0, 0, 0);
-      } else {
-        // Otherwise, add days to reach the selected day
-        targetDate.setDate(now.getDate() + daysToAdd);
-        targetDate.setHours(1, 0, 0, 0); // 1:00 AM on the selected day
-      }
-      
-      console.log(`Simulating date change to ${days[dayOfWeek]}: ${targetDate.toISOString()}`);
-      
-      // Change the last reset date to the day before the target date
-      const lastResetDate = new Date(targetDate);
-      lastResetDate.setDate(lastResetDate.getDate() - 1);
-      
-      // Save this as the last reset date
-      await AsyncStorage.setItem('@digitox_last_reset_date', lastResetDate.toISOString());
-      
-      // Force reset check
-      await checkAndResetDailyStats();
-      
-      // Reload stats
-      await loadDailyStats();
-      
-      Alert.alert("Date Changed", `Simulated date change to ${days[dayOfWeek]}`);
-    } catch (error) {
-      console.error("Error simulating date change:", error);
-      Alert.alert("Error", "Failed to simulate date change");
-    }
-  };
+  // Calculate boost progress percentage
+  const boostProgressPercentage = Math.min(timeSpent / BOOST_THRESHOLD_MINUTES, 1);
 
   return (
     <LinearGradient
@@ -200,7 +173,7 @@ const HomeScreen = () => {
         <View style={styles.content}>
           <Header />
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Digicoin</Text>
+            <Text style={styles.title}>Digitox</Text>
           </View>
 
           <View style={styles.detoxCard}>
@@ -210,15 +183,41 @@ const HomeScreen = () => {
               style={styles.goalButton}
               onPress={() => setShowGoalModal(true)}
             >
-              <Text style={styles.goalText}>Daily goal: {dailyGoal}min</Text>
-              <Icon name="pencil" size={16} color={colors.primary} style={styles.editIcon} />
+            <Text style={styles.goalText}>Daily goal: {dailyGoal}min</Text>
+              <Icon name="pencil" size={16} color={colors.text} style={styles.editIcon} />
             </TouchableOpacity>
+            
+            <View style={styles.startButtonContainer}>
             <TouchableOpacity 
               style={styles.startButton}
               onPress={() => navigation.navigate('Detox')}
             >
               <Text style={styles.startButtonText}>Start Detox</Text>
             </TouchableOpacity>
+              
+              {/* Boost multiplier indicator */}
+              <View style={styles.boostContainer}>
+                <View style={styles.boostInfo}>
+                  <Text style={styles.boostLabel}>Boost</Text>
+                  <Text style={[
+                    styles.boostValue, 
+                    boostMultiplier > 1 ? styles.boostActive : null
+                  ]}>
+                    {boostMultiplier}x
+                  </Text>
+                </View>
+                <ProgressBar 
+                  progress={boostProgressPercentage} 
+                  height={3}
+                  progressColor={boostMultiplier > 1 ? '#4CAF50' : colors.primary}
+                />
+                <Text style={styles.boostHint}>
+                  {boostMultiplier > 1 
+                    ? "2x boost active!" 
+                    : `${Math.floor(BOOST_THRESHOLD_MINUTES - timeSpent)}min until 2x boost`}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <View style={styles.weekProgress}>
@@ -305,31 +304,9 @@ const HomeScreen = () => {
           >
             <Text style={styles.resetButtonText}>Reset All Stats (Testing)</Text>
           </TouchableOpacity>
-          
-          {/* Force Date Change button for testing */}
-          <TouchableOpacity 
-            style={styles.forceDateButton}
-            onPress={() => {
-              Alert.alert(
-                "Test Date Change",
-                "Select a day to simulate:",
-                [
-                  { text: "Sunday", onPress: () => simulateDateChange(0) },
-                  { text: "Monday", onPress: () => simulateDateChange(1) },
-                  { text: "Tuesday", onPress: () => simulateDateChange(2) },
-                  { text: "Wednesday", onPress: () => simulateDateChange(3) },
-                  { text: "Thursday", onPress: () => simulateDateChange(4) },
-                  { text: "Friday", onPress: () => simulateDateChange(5) },
-                  { text: "Saturday", onPress: () => simulateDateChange(6) },
-                  { text: "Cancel", style: "cancel" }
-                ]
-              );
-            }}
-          >
-            <Text style={styles.resetButtonText}>Simulate Day Change</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
+      
 
       {/* Daily Goal Modal */}
       <Modal
@@ -427,14 +404,19 @@ const styles = StyleSheet.create({
   },
   goalText: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.text,
     fontWeight: '500',
+  },
+  startButtonContainer: {
+    width: '100%',
   },
   startButton: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.round,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   startButtonText: {
     ...typography.body,
@@ -602,13 +584,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.round,
     marginTop: spacing.xl,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  forceDateButton: {
-    backgroundColor: '#00A0B0',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.round,
     marginBottom: spacing.xl,
     alignItems: 'center',
   },
@@ -616,6 +591,36 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     fontWeight: '600',
+  },
+  boostContainer: {
+    marginTop: spacing.xs,
+    width: '100%',
+  },
+  boostInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  boostLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  boostValue: {
+    ...typography.caption,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  boostActive: {
+    color: '#4CAF50',
+  },
+  boostHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'right',
   },
 });
 

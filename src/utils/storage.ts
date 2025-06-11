@@ -8,13 +8,25 @@ const STORAGE_KEYS = {
   LAST_RESET_DATE: '@digitox_last_reset_date',
   WEEKLY_PROGRESS: '@digitox_weekly_progress',
   WEEK_START_DATE: '@digitox_week_start_date',
+  CURRENT_STREAK: '@digitox_current_streak',
+  LAST_ACTIVITY_DATE: '@digitox_last_activity_date',
+  DAILY_GOAL: '@digitox_daily_goal',
+  WEEKLY_GOAL: '@digitox_weekly_goal',
+  GOALS_COMPLETED: '@digitox_goals_completed',
+  DETOX_SESSIONS: '@digitox_detox_sessions',
+  TODAY_DETOX_TIME: '@digitox_today_detox_time',
 };
+
+// Storage keys
+const REDEEMED_REWARDS_KEY = '@digitox_redeemed_rewards';
 
 export interface DigiStats {
   balance: number;
   totalEarned: number;
   totalTimeSaved: number;
   dailyTimeSaved: number;
+  currentStreak: number;
+  todayDetoxTime: number;
 }
 
 export interface WeeklyProgress {
@@ -25,6 +37,53 @@ export interface WeeklyProgress {
   Thu: number;
   Fri: number;
   Sat: number;
+}
+
+export interface DetoxSession {
+  startTime: string;
+  endTime: string;
+  duration: number; // in seconds
+}
+
+export interface Goals {
+  dailyGoal: number; // in hours
+  weeklyGoal: number; // in hours
+  goalsCompleted: number;
+}
+
+// Interface for redeemed rewards
+export interface RedeemedReward {
+  id: string;
+  redeemedAt: string;
+  expiresAt: string;
+  usesLeft: number;
+}
+
+export const DIGICOINS_BALANCE_KEY = 'digicoins_balance';
+export const TOTAL_DIGICOINS_EARNED_KEY = 'total_digicoins_earned';
+
+export const PROMO_CODES_KEY = 'promo_codes';
+
+interface PromoCode {
+  id: string;
+  userId: string;
+  code: string;
+  offerId: string;
+  isUsed: boolean;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export const PROMO_CODES_POOL_KEY = 'promo_codes_pool';
+
+interface PromoCodePool {
+  id: string;
+  code: string;
+  offerId: string;
+  isAssigned: boolean;
+  assignedTo?: string;
+  assignedAt?: string;
+  expiresAt: string;
 }
 
 const shouldResetDaily = async (): Promise<boolean> => {
@@ -69,6 +128,7 @@ const resetDailyStats = async () => {
   await Promise.all([
     AsyncStorage.setItem(STORAGE_KEYS.DAILY_TIME, '0'),
     AsyncStorage.setItem(STORAGE_KEYS.LAST_RESET_DATE, new Date().toISOString()),
+    AsyncStorage.setItem(STORAGE_KEYS.TODAY_DETOX_TIME, '0'),
   ]);
 };
 
@@ -90,11 +150,13 @@ export const getDigiStats = async (): Promise<DigiStats> => {
       await resetDailyStats();
     }
 
-    const [balance, totalEarned, totalTime, dailyTime] = await Promise.all([
+    const [balance, totalEarned, totalTime, dailyTime, currentStreak, todayDetoxTime] = await Promise.all([
       AsyncStorage.getItem(STORAGE_KEYS.BALANCE),
       AsyncStorage.getItem(STORAGE_KEYS.TOTAL_EARNED),
       AsyncStorage.getItem(STORAGE_KEYS.TOTAL_TIME),
       AsyncStorage.getItem(STORAGE_KEYS.DAILY_TIME),
+      AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STREAK),
+      AsyncStorage.getItem(STORAGE_KEYS.TODAY_DETOX_TIME),
     ]);
 
     return {
@@ -102,10 +164,19 @@ export const getDigiStats = async (): Promise<DigiStats> => {
       totalEarned: totalEarned ? parseFloat(totalEarned) : 0,
       totalTimeSaved: totalTime ? parseInt(totalTime) : 0,
       dailyTimeSaved: dailyTime ? parseInt(dailyTime) : 0,
+      currentStreak: currentStreak ? parseInt(currentStreak) : 0,
+      todayDetoxTime: todayDetoxTime ? parseInt(todayDetoxTime) : 0,
     };
   } catch (error) {
     console.error('Error getting DigiStats:', error);
-    return { balance: 0, totalEarned: 0, totalTimeSaved: 0, dailyTimeSaved: 0 };
+    return { 
+      balance: 0, 
+      totalEarned: 0, 
+      totalTimeSaved: 0, 
+      dailyTimeSaved: 0, 
+      currentStreak: 0,
+      todayDetoxTime: 0,
+    };
   }
 };
 
@@ -167,6 +238,8 @@ export const updateDigiStats = async (earnedAmount: number, timeSpent: number) =
       totalEarned: currentStats.totalEarned + earnedAmount,
       totalTimeSaved: currentStats.totalTimeSaved + timeSpent,
       dailyTimeSaved: currentStats.dailyTimeSaved + timeSpent,
+      currentStreak: currentStats.currentStreak,
+      todayDetoxTime: currentStats.todayDetoxTime,
     };
 
     await Promise.all([
@@ -278,5 +351,506 @@ export const resetAllStatsToZero = async (): Promise<void> => {
     console.log('All stats reset to zero');
   } catch (error) {
     console.error('Error resetting stats:', error);
+  }
+};
+
+export const updateStreak = async (): Promise<number> => {
+  try {
+    const lastActivityDate = await AsyncStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY_DATE);
+    const currentStreak = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STREAK);
+    const now = new Date();
+    
+    if (!lastActivityDate) {
+      // First activity
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY_DATE, now.toISOString()),
+        AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STREAK, '1'),
+      ]);
+      return 1;
+    }
+
+    const lastActivity = new Date(lastActivityDate);
+    const daysSinceLastActivity = Math.floor(
+      (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    let newStreak = currentStreak ? parseInt(currentStreak) : 0;
+
+    if (daysSinceLastActivity === 1) {
+      // Consecutive day
+      newStreak += 1;
+    } else if (daysSinceLastActivity > 1) {
+      // Streak broken
+      newStreak = 1;
+    }
+
+    await Promise.all([
+      AsyncStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY_DATE, now.toISOString()),
+      AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STREAK, newStreak.toString()),
+    ]);
+
+    return newStreak;
+  } catch (error) {
+    console.error('Error updating streak:', error);
+    return 0;
+  }
+};
+
+export const getGoals = async (): Promise<Goals> => {
+  try {
+    const [dailyGoal, weeklyGoal, goalsCompleted] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEYS.DAILY_GOAL),
+      AsyncStorage.getItem(STORAGE_KEYS.WEEKLY_GOAL),
+      AsyncStorage.getItem(STORAGE_KEYS.GOALS_COMPLETED),
+    ]);
+
+    return {
+      dailyGoal: dailyGoal ? parseInt(dailyGoal) : 6, // Default 6 hours
+      weeklyGoal: weeklyGoal ? parseInt(weeklyGoal) : 42, // Default 42 hours
+      goalsCompleted: goalsCompleted ? parseInt(goalsCompleted) : 0,
+    };
+  } catch (error) {
+    console.error('Error getting goals:', error);
+    return { dailyGoal: 6, weeklyGoal: 42, goalsCompleted: 0 };
+  }
+};
+
+export const updateGoals = async (dailyGoal: number, weeklyGoal: number): Promise<Goals> => {
+  try {
+    await Promise.all([
+      AsyncStorage.setItem(STORAGE_KEYS.DAILY_GOAL, dailyGoal.toString()),
+      AsyncStorage.setItem(STORAGE_KEYS.WEEKLY_GOAL, weeklyGoal.toString()),
+    ]);
+
+    return await getGoals();
+  } catch (error) {
+    console.error('Error updating goals:', error);
+    return { dailyGoal: 6, weeklyGoal: 42, goalsCompleted: 0 };
+  }
+};
+
+export const checkAndUpdateGoals = async (timeSpent: number): Promise<Goals> => {
+  try {
+    const goals = await getGoals();
+    const stats = await getDigiStats();
+    
+    // Convert timeSpent from seconds to hours
+    const timeSpentHours = timeSpent / 3600;
+    const dailyTimeSpentHours = stats.dailyTimeSaved / 3600;
+    
+    let goalsCompleted = goals.goalsCompleted;
+    
+    // Check if daily goal is completed
+    if (dailyTimeSpentHours >= goals.dailyGoal) {
+      goalsCompleted += 1;
+      await AsyncStorage.setItem(STORAGE_KEYS.GOALS_COMPLETED, goalsCompleted.toString());
+    }
+    
+    return {
+      ...goals,
+      goalsCompleted,
+    };
+  } catch (error) {
+    console.error('Error checking goals:', error);
+    return { dailyGoal: 6, weeklyGoal: 42, goalsCompleted: 0 };
+  }
+};
+
+export const addDetoxSession = async (session: DetoxSession): Promise<DigiStats> => {
+  try {
+    // Get current sessions
+    const sessionsStr = await AsyncStorage.getItem(STORAGE_KEYS.DETOX_SESSIONS);
+    const sessions: DetoxSession[] = sessionsStr ? JSON.parse(sessionsStr) : [];
+    
+    // Add new session
+    sessions.push(session);
+    
+    // Save updated sessions
+    await AsyncStorage.setItem(STORAGE_KEYS.DETOX_SESSIONS, JSON.stringify(sessions));
+    
+    // Update today's detox time
+    const todayDetoxTimeStr = await AsyncStorage.getItem(STORAGE_KEYS.TODAY_DETOX_TIME);
+    const todayDetoxTime = todayDetoxTimeStr ? parseInt(todayDetoxTimeStr) : 0;
+    const newTodayDetoxTime = todayDetoxTime + session.duration;
+    await AsyncStorage.setItem(STORAGE_KEYS.TODAY_DETOX_TIME, newTodayDetoxTime.toString());
+    
+    // Get updated stats
+    const stats = await getDigiStats();
+    return {
+      ...stats,
+      todayDetoxTime: newTodayDetoxTime,
+    };
+  } catch (error) {
+    console.error('Error adding detox session:', error);
+    return await getDigiStats();
+  }
+};
+
+// Get all redeemed rewards
+export const getRedeemedRewards = async (): Promise<RedeemedReward[]> => {
+  try {
+    const rewards = await AsyncStorage.getItem(REDEEMED_REWARDS_KEY);
+    return rewards ? JSON.parse(rewards) : [];
+  } catch (error) {
+    console.error('Error getting redeemed rewards:', error);
+    return [];
+  }
+};
+
+// Add a redeemed reward
+export const addRedeemedReward = async (reward: RedeemedReward): Promise<boolean> => {
+  try {
+    const rewards = await getRedeemedRewards();
+    rewards.push(reward);
+    await AsyncStorage.setItem(REDEEMED_REWARDS_KEY, JSON.stringify(rewards));
+    return true;
+  } catch (error) {
+    console.error('Error adding redeemed reward:', error);
+    return false;
+  }
+};
+
+// Update uses left for a redeemed reward
+export const updateRedeemedRewardUses = async (rewardId: string, usesLeft: number): Promise<boolean> => {
+  try {
+    const rewards = await getRedeemedRewards();
+    const updatedRewards = rewards.map(reward => 
+      reward.id === rewardId ? { ...reward, usesLeft } : reward
+    );
+    await AsyncStorage.setItem(REDEEMED_REWARDS_KEY, JSON.stringify(updatedRewards));
+    return true;
+  } catch (error) {
+    console.error('Error updating redeemed reward:', error);
+    return false;
+  }
+};
+
+// Check if user has enough Digicoins
+export const hasEnoughDigicoins = async (requiredAmount: number): Promise<boolean> => {
+  const stats = await getDigiStats();
+  return stats.balance >= requiredAmount;
+};
+
+// Utility function to round up to 2 decimal places
+const roundUpToTwoDecimals = (num: number): number => {
+  return Math.ceil(num * 100) / 100;
+};
+
+export const getDigicoinsBalance = async (): Promise<number> => {
+  try {
+    const balance = await AsyncStorage.getItem(DIGICOINS_BALANCE_KEY);
+    if (!balance) {
+      // Set initial balance to 1000 if no balance exists
+      await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, '1000');
+      return 1000;
+    }
+    return roundUpToTwoDecimals(parseFloat(balance));
+  } catch (error) {
+    console.error('Error getting Digicoins balance:', error);
+    return 1000; // Return 1000 as default in case of error
+  }
+};
+
+// Function to reset balance to 1000 (for testing)
+export const resetDigicoinsBalance = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, '1000');
+  } catch (error) {
+    console.error('Error resetting Digicoins balance:', error);
+  }
+};
+
+export const getTotalDigicoinsEarned = async (): Promise<number> => {
+  try {
+    const total = await AsyncStorage.getItem(TOTAL_DIGICOINS_EARNED_KEY);
+    return total ? roundUpToTwoDecimals(parseFloat(total)) : 0;
+  } catch (error) {
+    console.error('Error getting total Digicoins earned:', error);
+    return 0;
+  }
+};
+
+export const deductDigicoins = async (amount: number): Promise<boolean> => {
+  try {
+    const currentBalance = await getDigicoinsBalance();
+    const newBalance = roundUpToTwoDecimals(currentBalance - amount);
+    
+    if (newBalance < 0) {
+      return false;
+    }
+
+    // Update current balance
+    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, newBalance.toString());
+    
+    // Update total earned
+    const totalEarned = await getTotalDigicoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
+    
+    return true;
+  } catch (error) {
+    console.error('Error deducting Digicoins:', error);
+    return false;
+  }
+};
+
+// Generate a unique promo code
+const generatePromoCode = (length = 10): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+};
+
+// Get all promo codes for a user
+export const getUserPromoCodes = async (userId: string): Promise<PromoCode[]> => {
+  try {
+    const codes = await AsyncStorage.getItem(PROMO_CODES_KEY);
+    if (!codes) return [];
+    
+    const allCodes: PromoCode[] = JSON.parse(codes);
+    return allCodes.filter(code => code.userId === userId);
+  } catch (error) {
+    console.error('Error getting user promo codes:', error);
+    return [];
+  }
+};
+
+// Get a specific promo code for an offer
+export const getPromoCodeForOffer = async (userId: string, offerId: string): Promise<PromoCode | null> => {
+  try {
+    const codes = await getUserPromoCodes(userId);
+    return codes.find(code => code.offerId === offerId && !code.isUsed) || null;
+  } catch (error) {
+    console.error('Error getting promo code for offer:', error);
+    return null;
+  }
+};
+
+// Initialize a pool of promo codes for an offer
+export const initializePromoCodePool = async (
+  offerId: string,
+  codes: string[],
+  expiresAt: string
+): Promise<void> => {
+  try {
+    const pool: PromoCodePool[] = codes.map(code => ({
+      id: Math.random().toString(36).substr(2, 9),
+      code,
+      offerId,
+      isAssigned: false,
+      expiresAt
+    }));
+
+    await AsyncStorage.setItem(PROMO_CODES_POOL_KEY, JSON.stringify(pool));
+  } catch (error) {
+    console.error('Error initializing promo code pool:', error);
+  }
+};
+
+// Get an available promo code from the pool
+export const getAvailablePromoCode = async (
+  offerId: string,
+  userId: string
+): Promise<PromoCodePool | null> => {
+  try {
+    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
+    if (!poolJson) return null;
+
+    const pool: PromoCodePool[] = JSON.parse(poolJson);
+    
+    // Get all available codes for this offer
+    const availableCodes = pool.filter(
+      code => code.offerId === offerId && !code.isAssigned
+    );
+
+    if (availableCodes.length === 0) {
+      throw new Error('No promo codes available');
+    }
+
+    // Randomly select one of the available codes
+    const randomIndex = Math.floor(Math.random() * availableCodes.length);
+    return availableCodes[randomIndex];
+  } catch (error) {
+    console.error('Error getting available promo code:', error);
+    throw error;
+  }
+};
+
+// Assign a promo code to a user
+export const assignPromoCode = async (
+  codeId: string,
+  userId: string
+): Promise<boolean> => {
+  try {
+    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
+    if (!poolJson) return false;
+
+    const pool: PromoCodePool[] = JSON.parse(poolJson);
+    const updatedPool = pool.map(code => {
+      if (code.id === codeId) {
+        return {
+          ...code,
+          isAssigned: true,
+          assignedTo: userId,
+          assignedAt: new Date().toISOString()
+        };
+      }
+      return code;
+    });
+
+    await AsyncStorage.setItem(PROMO_CODES_POOL_KEY, JSON.stringify(updatedPool));
+    return true;
+  } catch (error) {
+    console.error('Error assigning promo code:', error);
+    return false;
+  }
+};
+
+// Get pool statistics
+export const getPromoCodePoolStats = async (offerId: string): Promise<{
+  total: number;
+  available: number;
+  assigned: number;
+}> => {
+  try {
+    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
+    if (!poolJson) return { total: 0, available: 0, assigned: 0 };
+
+    const pool: PromoCodePool[] = JSON.parse(poolJson);
+    const offerCodes = pool.filter(code => code.offerId === offerId);
+
+    return {
+      total: offerCodes.length,
+      available: offerCodes.filter(code => !code.isAssigned).length,
+      assigned: offerCodes.filter(code => code.isAssigned).length
+    };
+  } catch (error) {
+    console.error('Error getting promo code pool stats:', error);
+    return { total: 0, available: 0, assigned: 0 };
+  }
+};
+
+// Update the generateAndStorePromoCode function
+export const generateAndStorePromoCode = async (
+  userId: string,
+  offerId: string,
+  expiresAt?: string
+): Promise<PromoCode> => {
+  try {
+    // Get an available code from the pool
+    const availableCode = await getAvailablePromoCode(offerId, userId);
+    if (!availableCode) {
+      throw new Error('No promo codes available in the pool');
+    }
+
+    // Assign the code to the user
+    await assignPromoCode(availableCode.id, userId);
+
+    const newCode: PromoCode = {
+      id: availableCode.id,
+      userId,
+      code: availableCode.code,
+      offerId,
+      isUsed: false,
+      expiresAt: availableCode.expiresAt,
+      createdAt: new Date().toISOString()
+    };
+
+    // Add to redeemed rewards
+    const existingCodes = await AsyncStorage.getItem(PROMO_CODES_KEY);
+    const allCodes: PromoCode[] = existingCodes ? JSON.parse(existingCodes) : [];
+    allCodes.push(newCode);
+    await AsyncStorage.setItem(PROMO_CODES_KEY, JSON.stringify(allCodes));
+
+    return newCode;
+  } catch (error) {
+    console.error('Error generating promo code:', error);
+    throw error;
+  }
+};
+
+// Mark a promo code as used
+export const markPromoCodeAsUsed = async (codeId: string): Promise<boolean> => {
+  try {
+    const codes = await AsyncStorage.getItem(PROMO_CODES_KEY);
+    if (!codes) return false;
+
+    const allCodes: PromoCode[] = JSON.parse(codes);
+    const updatedCodes = allCodes.map(code => 
+      code.id === codeId ? { ...code, isUsed: true } : code
+    );
+
+    await AsyncStorage.setItem(PROMO_CODES_KEY, JSON.stringify(updatedCodes));
+    return true;
+  } catch (error) {
+    console.error('Error marking promo code as used:', error);
+    return false;
+  }
+};
+
+export const REDEMPTIONS_COUNT_KEY = 'redemptions_count';
+
+// Get total number of redemptions
+export const getRedemptionsCount = async (): Promise<number> => {
+  try {
+    const count = await AsyncStorage.getItem(REDEMPTIONS_COUNT_KEY);
+    return count ? parseInt(count, 10) : 0;
+  } catch (error) {
+    console.error('Error getting redemptions count:', error);
+    return 0;
+  }
+};
+
+// Increment redemptions count
+export const incrementRedemptionsCount = async (): Promise<void> => {
+  try {
+    const currentCount = await getRedemptionsCount();
+    await AsyncStorage.setItem(REDEMPTIONS_COUNT_KEY, (currentCount + 1).toString());
+  } catch (error) {
+    console.error('Error incrementing redemptions count:', error);
+  }
+};
+
+// Update stats when redeeming an offer
+export const updateStatsOnRedemption = async (digicoinsAmount: number): Promise<void> => {
+  try {
+    // Update total earned
+    const totalEarned = await getTotalDigicoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, (totalEarned + digicoinsAmount).toString());
+    
+    // Increment redemptions count
+    await incrementRedemptionsCount();
+  } catch (error) {
+    console.error('Error updating stats on redemption:', error);
+  }
+};
+
+// Add a function to check if user has already redeemed a code for an offer
+export const hasUserRedeemedOffer = async (
+  userId: string,
+  offerId: string
+): Promise<boolean> => {
+  try {
+    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
+    if (!poolJson) return false;
+
+    const pool: PromoCodePool[] = JSON.parse(poolJson);
+    return pool.some(
+      code => code.offerId === offerId && code.assignedTo === userId
+    );
+  } catch (error) {
+    console.error('Error checking if user has redeemed offer:', error);
+    return false;
+  }
+};
+
+// Add a function to reset the pool for testing
+export const resetPromoCodePool = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(PROMO_CODES_POOL_KEY);
+  } catch (error) {
+    console.error('Error resetting promo code pool:', error);
   }
 }; 

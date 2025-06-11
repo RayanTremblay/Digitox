@@ -29,7 +29,7 @@ const RewardsScreen = () => {
         <View style={styles.content}>
           <Header />
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Digicoin</Text>
+            <Text style={styles.title}>Digitox</Text>
           </View>
 
           <Text style={styles.sectionTitle}>Scratch Cards</Text>

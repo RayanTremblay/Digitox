@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
@@ -32,6 +32,13 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
   useEffect(() => {
     loadStats();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadStats();
+      return () => {};
+    }, [])
+  );
 
   const loadStats = async () => {
     const currentStats = await getDigiStats();

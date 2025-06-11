@@ -7,6 +7,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Circle, G } from 'react-native-svg';
 import Header from '../components/Header';
 import { getDigiStats, updateDigiStats, checkAndResetDailyStats } from '../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Constants for boost feature
+const BOOST_THRESHOLD_MINUTES = 180; // 3 hours
+const BASE_COIN_RATE = 0.016666667; // 1 coin per hour (1/60 per minute)
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -57,6 +62,26 @@ const DetoxScreen = () => {
   const screenOpacity = useState(new Animated.Value(0))[0];
   const hoursInputRef = useRef<TextInput>(null);
   const minutesInputRef = useRef<TextInput>(null);
+  const [boostMultiplier, setBoostMultiplier] = useState(1);
+  const [dailyTimeOffMinutes, setDailyTimeOffMinutes] = useState(0);
+
+  useEffect(() => {
+    // Load daily stats to check for boost multiplier
+    const loadStats = async () => {
+      const stats = await getDigiStats();
+      const minutes = Math.floor(stats.dailyTimeSaved / 60);
+      setDailyTimeOffMinutes(minutes);
+      
+      // Update boost multiplier based on time spent
+      if (minutes >= BOOST_THRESHOLD_MINUTES) {
+        setBoostMultiplier(2);
+      } else {
+        setBoostMultiplier(1);
+      }
+    };
+    
+    loadStats();
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -64,10 +89,20 @@ const DetoxScreen = () => {
       interval = setInterval(() => {
         setTimeElapsed((prev) => {
           const newTime = prev + 1;
-          // Calculate earned Digicoins (1 minute = 0.016666... Digicoins)
-          const newEarnedDigicoins = (newTime / 60) * 0.016666667;
+          // Calculate earned Digicoins with boost multiplier
+          const totalMinutes = (dailyTimeOffMinutes + newTime / 60);
+          const currentBoost = totalMinutes >= BOOST_THRESHOLD_MINUTES ? 2 : 1;
+          
+          // Apply the boost multiplier
+          const newEarnedDigicoins = (newTime / 60) * BASE_COIN_RATE * currentBoost;
+          
           if (Math.abs(newEarnedDigicoins - earnedDigicoins) >= 0.01) {
             setEarnedDigicoins(Number(newEarnedDigicoins.toFixed(2)));
+            
+            // Update boost multiplier if we crossed the threshold
+            if (currentBoost > boostMultiplier) {
+              setBoostMultiplier(currentBoost);
+            }
           }
           
           // Auto-end detox when duration is reached
@@ -80,7 +115,7 @@ const DetoxScreen = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive, earnedDigicoins, selectedDuration]);
+  }, [isActive, earnedDigicoins, selectedDuration, dailyTimeOffMinutes, boostMultiplier]);
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -280,6 +315,11 @@ const DetoxScreen = () => {
                     resizeMode="contain"
                   />
                   <Text style={styles.rewardText}>+{earnedDigicoins.toFixed(2)}</Text>
+                  {boostMultiplier > 1 && (
+                    <View style={styles.boostBadge}>
+                      <Text style={styles.boostBadgeText}>{boostMultiplier}x</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -563,6 +603,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.round,
     marginTop: spacing.md,
+    position: 'relative',
   },
   smallCoinIcon: {
     width: 24,
@@ -705,6 +746,22 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  boostBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  boostBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 

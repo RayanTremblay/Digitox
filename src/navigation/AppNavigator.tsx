@@ -12,6 +12,8 @@ import MarketScreen from '../screens/MarketScreen';
 import RewardsScreen from '../screens/RewardsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DetoxScreen from '../screens/DetoxScreen';
+import PrivacyScreen from '../screens/PrivacyScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
 
 const Tab = createBottomTabNavigator<RootStackParamList>();
 const Stack = createStackNavigator<RootStackParamList>();
@@ -56,6 +58,8 @@ const AppNavigator = () => {
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Detox" component={DetoxScreen} />
+        <Stack.Screen name="Privacy" component={PrivacyScreen} />
+        <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
