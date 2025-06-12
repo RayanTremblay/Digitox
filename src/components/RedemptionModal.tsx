@@ -99,8 +99,21 @@ const RedemptionModal = ({
         You cannot redeem the same offer multiple times. However, you can redeem other offers to get additional codes.
       </Text>
       
-      <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-        <Text style={styles.secondaryButtonText}>Understood</Text>
+      <TouchableOpacity 
+        style={{
+          backgroundColor: colors.primary,
+          padding: spacing.md,
+          borderRadius: borderRadius.md,
+          alignItems: 'center',
+          width: '100%',
+        }} 
+        onPress={onClose}
+      >
+        <Text style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: '#FFFFFF',
+        }}>Understood</Text>
       </TouchableOpacity>
     </View>
   );
@@ -385,6 +398,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   primaryButtonText: {
     ...typography.body,
@@ -398,12 +413,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.surface,
+    borderColor: colors.primary,
   },
   secondaryButtonText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.primary,
+  },
+  buttonIcon: {
+    marginRight: spacing.xs,
   },
 });
 
