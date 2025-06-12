@@ -1,67 +1,115 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Clipboard } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { getDigiStats } from '../utils/storage';
 
 interface StatsModalProps {
   visible: boolean;
   onClose: () => void;
-  promoCode: string;
-  rewardTitle: string;
-  expiresAt: string;
+  stats?: {
+    currentBalance: number;
+    totalEarned: number;
+    totalTimeSaved: number;
+  };
 }
 
-const StatsModal = ({
-  visible,
-  onClose,
-  promoCode,
-  rewardTitle,
-  expiresAt,
-}: StatsModalProps) => {
-  const handleCopyCode = () => {
-    Clipboard.setString(promoCode);
+const formatLongTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  
+  if (hours === 0) {
+    return `${minutes} minutes`;
+  } else if (minutes === 0) {
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  } else {
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${minutes} minutes`;
+  }
+};
+
+const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passedStats }) => {
+  const [stats, setStats] = useState({
+    currentBalance: 0,
+    totalEarned: 0,
+    totalTimeSaved: 0,
+  });
+
+  useEffect(() => {
+    if (visible) {
+      if (passedStats) {
+        setStats(passedStats);
+      } else {
+        loadStats();
+      }
+    }
+  }, [visible, passedStats]);
+
+  const loadStats = async () => {
+    const currentStats = await getDigiStats();
+    setStats({
+      currentBalance: currentStats.balance,
+      totalEarned: currentStats.totalEarned,
+      totalTimeSaved: currentStats.totalTimeSaved,
+    });
   };
 
   return (
     <Modal
+      animationType="slide"
+      transparent={true}
       visible={visible}
-      transparent
-      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        <View style={styles.modalContent}>
-          <LinearGradient
-            colors={[colors.primary, colors.primary]}
-            style={styles.header}
-          >
-            <Text style={styles.headerTitle}>Reward Details</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={colors.background} />
+        <View style={[styles.modalContent, styles.statsModalContent]}>
+          <View style={styles.statsHeader}>
+            <Text style={styles.modalTitle}>Your Digicoin Stats</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={onClose}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
 
-          <View style={styles.content}>
-            <View style={styles.infoBox}>
-              <Text style={styles.rewardTitle}>{rewardTitle}</Text>
-              <View style={styles.promoCodeContainer}>
-                <Text style={styles.promoCode}>Promo Code: {promoCode}</Text>
-                <TouchableOpacity 
-                  style={styles.copyButton}
-                  onPress={handleCopyCode}
-                >
-                  <Ionicons name="copy-outline" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.expiryDate}>
-                Expires: {new Date(expiresAt).toLocaleDateString()}
-              </Text>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Current Balance</Text>
+              <Text style={styles.statValue}>{stats.currentBalance.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Total Earned</Text>
+              <Text style={styles.statValue}>{stats.totalEarned.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Image
+                source={require('../assets/logo.png')}
+                style={styles.statIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={styles.statLabel}>Total Time Saved</Text>
+              <Text style={styles.statValue}>{formatLongTime(stats.totalTimeSaved)}</Text>
             </View>
           </View>
         </View>
@@ -73,73 +121,80 @@ const StatsModal = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    width: '90%',
+    padding: spacing.xl,
+    width: '80%',
     maxWidth: 400,
-    shadowColor: colors.text,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  statsModalContent: {
     padding: spacing.lg,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
   },
-  headerTitle: {
+  statsHeader: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  modalTitle: {
     ...typography.h2,
-    color: colors.background,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    fontWeight: '600',
   },
   closeButton: {
-    padding: spacing.xs,
+    position: 'absolute',
+    right: -spacing.md,
+    top: -spacing.xl,
+    padding: spacing.sm,
+    zIndex: 1,
   },
-  content: {
-    padding: spacing.lg,
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '600',
   },
-  infoBox: {
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    borderRadius: borderRadius.md,
-  },
-  rewardTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  promoCodeContainer: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
-  promoCode: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  statIcon: {
+    width: 24,
+    height: 24,
+  },
+  statInfo: {
     flex: 1,
   },
-  copyButton: {
-    padding: spacing.xs,
-    marginLeft: spacing.xs,
+  statLabel: {
+    ...typography.body,
+    color: '#E0E0E0',
+    fontSize: 14,
+    marginBottom: spacing.xs,
   },
-  expiryDate: {
-    ...typography.caption,
-    color: colors.textSecondary,
+  statValue: {
+    ...typography.h3,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

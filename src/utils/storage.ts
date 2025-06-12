@@ -74,18 +74,6 @@ interface PromoCode {
   createdAt: string;
 }
 
-export const PROMO_CODES_POOL_KEY = 'promo_codes_pool';
-
-interface PromoCodePool {
-  id: string;
-  code: string;
-  offerId: string;
-  isAssigned: boolean;
-  assignedTo?: string;
-  assignedAt?: string;
-  expiresAt: string;
-}
-
 const shouldResetDaily = async (): Promise<boolean> => {
   const lastResetDate = await AsyncStorage.getItem(STORAGE_KEYS.LAST_RESET_DATE);
   if (!lastResetDate) return true;
@@ -628,140 +616,37 @@ export const getPromoCodeForOffer = async (userId: string, offerId: string): Pro
   }
 };
 
-// Initialize a pool of promo codes for an offer
-export const initializePromoCodePool = async (
-  offerId: string,
-  codes: string[],
-  expiresAt: string
-): Promise<void> => {
-  try {
-    const pool: PromoCodePool[] = codes.map(code => ({
-      id: Math.random().toString(36).substr(2, 9),
-      code,
-      offerId,
-      isAssigned: false,
-      expiresAt
-    }));
-
-    await AsyncStorage.setItem(PROMO_CODES_POOL_KEY, JSON.stringify(pool));
-  } catch (error) {
-    console.error('Error initializing promo code pool:', error);
-  }
-};
-
-// Get an available promo code from the pool
-export const getAvailablePromoCode = async (
-  offerId: string,
-  userId: string
-): Promise<PromoCodePool | null> => {
-  try {
-    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
-    if (!poolJson) return null;
-
-    const pool: PromoCodePool[] = JSON.parse(poolJson);
-    
-    // Get all available codes for this offer
-    const availableCodes = pool.filter(
-      code => code.offerId === offerId && !code.isAssigned
-    );
-
-    if (availableCodes.length === 0) {
-      throw new Error('No promo codes available');
-    }
-
-    // Randomly select one of the available codes
-    const randomIndex = Math.floor(Math.random() * availableCodes.length);
-    return availableCodes[randomIndex];
-  } catch (error) {
-    console.error('Error getting available promo code:', error);
-    throw error;
-  }
-};
-
-// Assign a promo code to a user
-export const assignPromoCode = async (
-  codeId: string,
-  userId: string
-): Promise<boolean> => {
-  try {
-    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
-    if (!poolJson) return false;
-
-    const pool: PromoCodePool[] = JSON.parse(poolJson);
-    const updatedPool = pool.map(code => {
-      if (code.id === codeId) {
-        return {
-          ...code,
-          isAssigned: true,
-          assignedTo: userId,
-          assignedAt: new Date().toISOString()
-        };
-      }
-      return code;
-    });
-
-    await AsyncStorage.setItem(PROMO_CODES_POOL_KEY, JSON.stringify(updatedPool));
-    return true;
-  } catch (error) {
-    console.error('Error assigning promo code:', error);
-    return false;
-  }
-};
-
-// Get pool statistics
-export const getPromoCodePoolStats = async (offerId: string): Promise<{
-  total: number;
-  available: number;
-  assigned: number;
-}> => {
-  try {
-    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
-    if (!poolJson) return { total: 0, available: 0, assigned: 0 };
-
-    const pool: PromoCodePool[] = JSON.parse(poolJson);
-    const offerCodes = pool.filter(code => code.offerId === offerId);
-
-    return {
-      total: offerCodes.length,
-      available: offerCodes.filter(code => !code.isAssigned).length,
-      assigned: offerCodes.filter(code => code.isAssigned).length
-    };
-  } catch (error) {
-    console.error('Error getting promo code pool stats:', error);
-    return { total: 0, available: 0, assigned: 0 };
-  }
-};
-
-// Update the generateAndStorePromoCode function
+// Generate and store a new promo code
 export const generateAndStorePromoCode = async (
   userId: string,
   offerId: string,
   expiresAt?: string
 ): Promise<PromoCode> => {
   try {
-    // Get an available code from the pool
-    const availableCode = await getAvailablePromoCode(offerId, userId);
-    if (!availableCode) {
-      throw new Error('No promo codes available in the pool');
+    // Check if user already has an unused code for this offer
+    const existingCode = await getPromoCodeForOffer(userId, offerId);
+    if (existingCode) {
+      return existingCode;
     }
 
-    // Assign the code to the user
-    await assignPromoCode(availableCode.id, userId);
-
     const newCode: PromoCode = {
-      id: availableCode.id,
+      id: Math.random().toString(36).substr(2, 9),
       userId,
-      code: availableCode.code,
+      code: generatePromoCode(),
       offerId,
       isUsed: false,
-      expiresAt: availableCode.expiresAt,
+      expiresAt: expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days default
       createdAt: new Date().toISOString()
     };
 
-    // Add to redeemed rewards
+    // Get existing codes
     const existingCodes = await AsyncStorage.getItem(PROMO_CODES_KEY);
     const allCodes: PromoCode[] = existingCodes ? JSON.parse(existingCodes) : [];
+
+    // Add new code
     allCodes.push(newCode);
+
+    // Save updated codes
     await AsyncStorage.setItem(PROMO_CODES_KEY, JSON.stringify(allCodes));
 
     return newCode;
@@ -824,33 +709,5 @@ export const updateStatsOnRedemption = async (digicoinsAmount: number): Promise<
     await incrementRedemptionsCount();
   } catch (error) {
     console.error('Error updating stats on redemption:', error);
-  }
-};
-
-// Add a function to check if user has already redeemed a code for an offer
-export const hasUserRedeemedOffer = async (
-  userId: string,
-  offerId: string
-): Promise<boolean> => {
-  try {
-    const poolJson = await AsyncStorage.getItem(PROMO_CODES_POOL_KEY);
-    if (!poolJson) return false;
-
-    const pool: PromoCodePool[] = JSON.parse(poolJson);
-    return pool.some(
-      code => code.offerId === offerId && code.assignedTo === userId
-    );
-  } catch (error) {
-    console.error('Error checking if user has redeemed offer:', error);
-    return false;
-  }
-};
-
-// Add a function to reset the pool for testing
-export const resetPromoCodePool = async (): Promise<void> => {
-  try {
-    await AsyncStorage.removeItem(PROMO_CODES_POOL_KEY);
-  } catch (error) {
-    console.error('Error resetting promo code pool:', error);
   }
 }; 

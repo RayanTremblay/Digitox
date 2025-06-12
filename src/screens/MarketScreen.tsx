@@ -7,25 +7,23 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import RewardCard, { Reward } from '../components/RewardCard';
 import RedeemConfirmationModal from '../components/RedeemConfirmationModal';
+import RedemptionModal from '../components/RedemptionModal';
 import { Ionicons } from '@expo/vector-icons';
 import { 
   getDigiStats, 
   hasEnoughDigicoins, 
   deductDigicoins, 
   addRedeemedReward,
-  generateAndStorePromoCode,
-  markPromoCodeAsUsed,
   getDigicoinsBalance,
-  updateStatsOnRedemption,
-  getTotalDigicoinsEarned,
-  getRedemptionsCount,
-  initializePromoCodePool,
-  getPromoCodePoolStats,
-  hasUserRedeemedOffer,
-  resetPromoCodePool
+  updateStatsOnRedemption
 } from '../utils/storage';
-import StatsModal from '../components/StatsModal';
-import OutOfStockModal from '../components/OutOfStockModal';
+import {
+  assignPromoCodeToUser,
+  markUserPromoCodeAsUsed,
+  getUserPromoCodeForOffer,
+  getAvailableCodesCount,
+  autoInitializeYourCodes
+} from '../utils/codeManager';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -41,24 +39,22 @@ const MarketScreen = () => {
   const [userBalance, setUserBalance] = useState(1000);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [statsData, setStatsData] = useState({
+  const [showRedemptionModal, setShowRedemptionModal] = useState(false);
+  const [redemptionModalProps, setRedemptionModalProps] = useState({
+    scenario: 'success' as 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
     promoCode: '',
     rewardTitle: '',
-    expiresAt: '',
+    userBalance: 0,
+    requiredAmount: 0,
   });
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [showOutOfStockModal, setShowOutOfStockModal] = useState(false);
-  const [outOfStockReward, setOutOfStockReward] = useState('');
 
+  // Load user balance and initialize promo codes
   useEffect(() => {
-    loadUserBalance();
-    // Initialize promo code pool for Garmin Venu 3
-    initializePromoCodePool(
-      'garmin-venu-3',
-      ['MCCA1', 'RFTG2', 'PKIWD9'],
-      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-    );
+    const initializeApp = async () => {
+      await loadUserBalance();
+      await autoInitializeYourCodes(); // Auto-initialize your promo codes
+    };
+    initializeApp();
   }, []);
 
   const loadUserBalance = async () => {
@@ -131,66 +127,77 @@ const MarketScreen = () => {
     setShowConfirmation(true);
   };
 
-  const handleConfirmRedeem = async () => {
-    if (!selectedReward) return;
+  const showRedemptionResult = (
+    scenario: 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
+    promoCode?: string,
+    rewardTitle?: string
+  ) => {
+    setRedemptionModalProps({
+      scenario,
+      promoCode: promoCode || '',
+      rewardTitle: rewardTitle || '',
+      userBalance,
+      requiredAmount: selectedReward?.digicoins || 0,
+    });
+    setShowRedemptionModal(true);
+    setShowConfirmation(false);
+    setSelectedReward(null);
+  };
 
+  const handleConfirmRedeem = async (reward: Reward) => {
     try {
+      const userId = 'user123'; // Replace with actual user ID from authentication
+
       // Check if user has enough balance
-      if (userBalance < selectedReward.digicoins) {
-        Alert.alert('Insufficient Balance', 'You don\'t have enough Digicoins to redeem this reward.');
+      if (userBalance < reward.digicoins) {
+        showRedemptionResult('insufficient_balance', undefined, reward.title);
         return;
       }
 
-      // Get pool stats before redemption
-      const poolStats = await getPromoCodePoolStats('garmin-venu-3');
-      if (poolStats.available === 0) {
-        setOutOfStockReward(selectedReward.title);
-        setShowOutOfStockModal(true);
-        setShowConfirmation(false);
+      // Check if user already has a promo code for this specific offer
+      const existingUserCode = await getUserPromoCodeForOffer(userId, reward.id);
+      if (existingUserCode) {
+        showRedemptionResult('already_redeemed', existingUserCode.code, reward.title);
         return;
       }
 
-      // Generate and store promo code
-      const promoCode = await generateAndStorePromoCode(
-        'user123', // Replace with actual user ID
-        'garmin-venu-3',
-        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      );
+      // Get or assign promo code from the database
+      const userPromoCode = await assignPromoCodeToUser(userId, reward.id, reward.expiresAt);
 
-      // Deduct Digicoins
-      await deductDigicoins(selectedReward.digicoins);
+      if (!userPromoCode) {
+        showRedemptionResult('no_codes', undefined, reward.title);
+        return;
+      }
 
-      // Update UI
-      setUserBalance(prev => prev - selectedReward.digicoins);
-      setStatsData({
-        promoCode: promoCode.code,
-        rewardTitle: selectedReward.title,
-        expiresAt: promoCode.expiresAt
+      // Deduct Digicoins and update balance
+      const deductionSuccess = await deductDigicoins(reward.digicoins);
+      
+      if (!deductionSuccess) {
+        showRedemptionResult('error', undefined, reward.title);
+        return;
+      }
+      
+      // Update local state
+      const newBalance = userBalance - reward.digicoins;
+      setUserBalance(newBalance);
+      
+      // Add to redeemed rewards
+      await addRedeemedReward({
+        id: reward.id,
+        redeemedAt: new Date().toISOString(),
+        expiresAt: reward.expiresAt,
+        usesLeft: reward.usesLeft || 1
       });
-      setShowStatsModal(true);
-      setShowConfirmation(false);
-      setSelectedReward(null);
+
+      // Update stats
+      await updateStatsOnRedemption(reward.digicoins);
+
+      // Show success modal with promo code
+      showRedemptionResult('success', userPromoCode.code, reward.title);
 
     } catch (error) {
       console.error('Error redeeming reward:', error);
-      Alert.alert('Error', error.message || 'Failed to redeem reward. Please try again.');
-    }
-  };
-
-  // Add a function to reset the pool for testing
-  const handleResetPool = async () => {
-    try {
-      await resetPromoCodePool();
-      // Reinitialize the pool
-      await initializePromoCodePool(
-        'garmin-venu-3',
-        ['MCCA1', 'RFTG2', 'PKIWD9'],
-        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      );
-      Alert.alert('Success', 'Promo code pool has been reset.');
-    } catch (error) {
-      console.error('Error resetting pool:', error);
-      Alert.alert('Error', 'Failed to reset promo code pool.');
+      showRedemptionResult('error', undefined, selectedReward?.title);
     }
   };
 
@@ -263,23 +270,22 @@ const MarketScreen = () => {
         visible={showConfirmation}
         reward={selectedReward}
         userBalance={userBalance}
-        onConfirm={handleConfirmRedeem}
+        onConfirm={() => handleConfirmRedeem(selectedReward!)}
         onCancel={() => {
           setShowConfirmation(false);
           setSelectedReward(null);
         }}
       />
 
-      <StatsModal
-        visible={showStatsModal}
-        onClose={() => setShowStatsModal(false)}
-        {...statsData}
-      />
-
-      <OutOfStockModal
-        visible={showOutOfStockModal}
-        onClose={() => setShowOutOfStockModal(false)}
-        rewardTitle={outOfStockReward}
+      {/* Redemption Result Modal */}
+      <RedemptionModal
+        visible={showRedemptionModal}
+        onClose={() => setShowRedemptionModal(false)}
+        scenario={redemptionModalProps.scenario}
+        promoCode={redemptionModalProps.promoCode}
+        rewardTitle={redemptionModalProps.rewardTitle}
+        userBalance={redemptionModalProps.userBalance}
+        requiredAmount={redemptionModalProps.requiredAmount}
       />
     </LinearGradient>
   );
@@ -306,7 +312,6 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
-    color: colors.text,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -323,7 +328,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 40,
-    color: colors.text,
     ...typography.body,
   },
   sectionTitle: {
