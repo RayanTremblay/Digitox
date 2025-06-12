@@ -1,22 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import LoginScreen from './src/screens/LoginScreen';
 import { SplashScreen } from './app/components/SplashScreen';
 
-export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate some loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
+const AppContent = () => {
+  const { user, isLoading, isFirstLaunch, setIsFirstLaunch } = useAuth();
 
   if (isLoading) {
     return <SplashScreen />;
   }
 
+  // Show login screen if user is not authenticated or it's first launch
+  if (!user || isFirstLaunch) {
+    return (
+      <LoginScreen 
+        onAuthSuccess={() => {
+          setIsFirstLaunch(false);
+        }} 
+      />
+    );
+  }
+
   return <AppNavigator />;
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }

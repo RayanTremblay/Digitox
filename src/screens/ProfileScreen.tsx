@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,8 @@ import StatsModal from '../components/StatsModal';
 import { getDigiStats, updateStreak } from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logoutUser } from '../../firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 // Storage key for daily goal
 const DAILY_GOAL_KEY = '@digitox_daily_goal';
@@ -23,6 +25,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [userStats, setUserStats] = useState({
@@ -81,6 +84,36 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await logoutUser();
+              if (result.success) {
+                // The AuthContext will automatically handle the navigation
+                // back to the login screen when the user state changes
+              } else {
+                Alert.alert('Error', result.error || 'Failed to logout');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An unexpected error occurred during logout');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Calculate daily progress
   const dailyProgress = Math.min(
     (userStats.todayDetoxTime / 60) / dailyGoal * 100,
@@ -125,10 +158,17 @@ const ProfileScreen = () => {
 
           <View style={styles.profileSection}>
             <View style={styles.profileImageContainer}>
-              <Text style={styles.profileImageText}>RT</Text>
+              <Text style={styles.profileImageText}>
+                {user?.displayName 
+                  ? user.displayName.split(' ').map(name => name[0]).join('').toUpperCase()
+                  : user?.email?.[0]?.toUpperCase() || 'U'
+                }
+              </Text>
             </View>
-            <Text style={styles.profileName}>Rayan Tremblay</Text>
-            <Text style={styles.profileEmail}>rayan@example.com</Text>
+            <Text style={styles.profileName}>
+              {user?.displayName || user?.email?.split('@')[0] || 'User'}
+            </Text>
+            <Text style={styles.profileEmail}>{user?.email || 'No email'}</Text>
           </View>
 
           <Text style={styles.sectionTitle}>Statistics</Text>
@@ -199,7 +239,7 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.logoutButton}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
         </View>
