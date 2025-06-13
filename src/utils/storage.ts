@@ -581,6 +581,25 @@ export const deductDigicoins = async (amount: number): Promise<boolean> => {
   }
 };
 
+export const addDigicoins = async (amount: number): Promise<boolean> => {
+  try {
+    const currentBalance = await getDigicoinsBalance();
+    const newBalance = roundUpToTwoDecimals(currentBalance + amount);
+    
+    // Update current balance
+    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, newBalance.toString());
+    
+    // Update total earned
+    const totalEarned = await getTotalDigicoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding Digicoins:', error);
+    return false;
+  }
+};
+
 // Generate a unique promo code
 const generatePromoCode = (length = 10): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

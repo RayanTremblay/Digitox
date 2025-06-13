@@ -63,7 +63,7 @@ const RedemptionModal = ({
         This is your unique promo code for this offer. Save it somewhere safe - you won't be able to get another one for this specific offer.
       </Text>
       
-      <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
+      <TouchableOpacity style={styles.standaloneButton} onPress={onClose}>
         <Text style={styles.primaryButtonText}>Got it!</Text>
       </TouchableOpacity>
     </View>
@@ -184,7 +184,7 @@ const RedemptionModal = ({
         Keep using the app to earn more Digicoins and come back when you have enough!
       </Text>
       
-      <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
+      <TouchableOpacity style={styles.standaloneButton} onPress={onClose}>
         <Text style={styles.primaryButtonText}>Keep Earning</Text>
       </TouchableOpacity>
     </View>
@@ -401,10 +401,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
+  standaloneButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    minHeight: 48,
+  },
   primaryButtonText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.background,
+    color: colors.text,
   },
   secondaryButton: {
     flex: 1,

@@ -6,6 +6,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import StatsModal from './StatsModal';
 import { getDigiStats } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserData } from '../../firebase/firestore';
+import { generateInitials, generateInitialsFromDisplayName, generateInitialsFromEmail } from '../utils/userUtils';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -22,7 +25,9 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true }) => {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [userInitials, setUserInitials] = useState('U');
   const [stats, setStats] = useState({
     balance: 0,
     totalEarned: 0,
@@ -31,18 +36,66 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
 
   useEffect(() => {
     loadStats();
-  }, []);
+    loadUserData();
+  }, [user]);
 
   useFocusEffect(
     React.useCallback(() => {
       loadStats();
+      loadUserData();
       return () => {};
-    }, [])
+    }, [user])
   );
 
   const loadStats = async () => {
     const currentStats = await getDigiStats();
     setStats(currentStats);
+  };
+
+  const loadUserData = async () => {
+    if (!user) {
+      setUserInitials('U');
+      return;
+    }
+
+    try {
+      const result = await getUserData(user.uid);
+      if (result.success && result.data) {
+        const userData = result.data;
+        
+        // Try to generate initials from firstName and lastName first
+        if (userData.firstName && userData.lastName) {
+          setUserInitials(generateInitials(userData.firstName, userData.lastName));
+        }
+        // Fallback to displayName
+        else if (userData.displayName) {
+          setUserInitials(generateInitialsFromDisplayName(userData.displayName));
+        }
+        // Fallback to email
+        else if (user.email) {
+          setUserInitials(generateInitialsFromEmail(user.email));
+        }
+        // Final fallback
+        else {
+          setUserInitials('U');
+        }
+      } else {
+        // If no user data in Firestore, use email
+        if (user.email) {
+          setUserInitials(generateInitialsFromEmail(user.email));
+        } else {
+          setUserInitials('U');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      // Fallback to email if available
+      if (user.email) {
+        setUserInitials(generateInitialsFromEmail(user.email));
+      } else {
+        setUserInitials('U');
+      }
+    }
   };
 
   return (
@@ -77,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
             style={styles.profileButton}
             onPress={() => navigation.navigate('Profile')}
           >
-            <Text style={styles.profileText}>RT</Text>
+            <Text style={styles.profileText}>{userInitials}</Text>
           </TouchableOpacity>
         )}
       </View>

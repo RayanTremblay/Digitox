@@ -77,6 +77,7 @@ const MarketScreen = () => {
   ];
 
   const rewards: Reward[] = [
+    // Gadgets
     {
       id: '1',
       title: 'Garmin Venu 3',
@@ -110,6 +111,106 @@ const MarketScreen = () => {
       discount: '20% OFF',
       category: 'Gadgets',
       image: 'https://example.com/samsung.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    // Health & Wellness
+    {
+      id: '4',
+      title: 'Meditation App Premium',
+      description: '3 months free premium subscription',
+      subtext: 'Find your inner peace and reduce stress',
+      digicoins: 2,
+      discount: '100% OFF',
+      category: 'Health & Wellness',
+      image: 'https://example.com/meditation.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    {
+      id: '5',
+      title: 'Yoga Class Pass',
+      description: '5 free yoga classes at local studios',
+      subtext: 'Strengthen your body and mind',
+      digicoins: 3,
+      discount: '$75 VALUE',
+      category: 'Health & Wellness',
+      image: 'https://example.com/yoga.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    // Digital Wellness
+    {
+      id: '6',
+      title: 'Screen Time Coach',
+      description: 'Personal digital wellness coaching session',
+      subtext: 'Learn healthy digital habits',
+      digicoins: 4,
+      discount: '$50 VALUE',
+      category: 'Digital Wellness',
+      image: 'https://example.com/coach.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    {
+      id: '7',
+      title: 'Blue Light Glasses',
+      description: '40% off premium blue light blocking glasses',
+      subtext: 'Protect your eyes from screen strain',
+      digicoins: 2,
+      discount: '40% OFF',
+      category: 'Digital Wellness',
+      image: 'https://example.com/glasses.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    // Entertainment
+    {
+      id: '8',
+      title: 'Netflix Premium',
+      description: '2 months free Netflix subscription',
+      subtext: 'Enjoy your favorite shows and movies',
+      digicoins: 3,
+      discount: '$30 VALUE',
+      category: 'Entertainment',
+      image: 'https://example.com/netflix.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    {
+      id: '9',
+      title: 'Spotify Premium',
+      description: '3 months free music streaming',
+      subtext: 'Listen to music without ads',
+      digicoins: 2,
+      discount: '$30 VALUE',
+      category: 'Entertainment',
+      image: 'https://example.com/spotify.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    // Education
+    {
+      id: '10',
+      title: 'Coursera Plus',
+      description: '1 month free access to all courses',
+      subtext: 'Learn new skills from top universities',
+      digicoins: 5,
+      discount: '$59 VALUE',
+      category: 'Education',
+      image: 'https://example.com/coursera.jpg',
+      expiresAt: '2024-12-31',
+      usesLeft: 1
+    },
+    {
+      id: '11',
+      title: 'Language Learning App',
+      description: '6 months premium language learning',
+      subtext: 'Master a new language',
+      digicoins: 4,
+      discount: '$60 VALUE',
+      category: 'Education',
+      image: 'https://example.com/language.jpg',
       expiresAt: '2024-12-31',
       usesLeft: 1
     }
@@ -255,13 +356,31 @@ const MarketScreen = () => {
 
           {/* Featured Section */}
           <Text style={styles.sectionTitle}>Featured Rewards</Text>
-          {filteredRewards.map((reward) => (
-            <RewardCard
-              key={reward.id}
-              reward={reward}
-              onRedeem={() => handleRedeem(reward)}
-            />
-          ))}
+          {filteredRewards.length > 0 ? (
+            filteredRewards.map((reward) => (
+              <RewardCard
+                key={reward.id}
+                reward={reward}
+                onRedeem={() => handleRedeem(reward)}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="gift-outline" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyStateTitle}>No Rewards Found</Text>
+              <Text style={styles.emptyStateText}>
+                {searchQuery 
+                  ? `No rewards match "${searchQuery}"`
+                  : selectedCategory === 'All' 
+                    ? 'No rewards available at the moment'
+                    : `No rewards available in ${selectedCategory}`
+                }
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                Check back later or try a different category!
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -338,6 +457,7 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: spacing.md,
     marginBottom: spacing.xl,
+    minHeight: 44, // Ensure consistent height
   },
   categoryButton: {
     backgroundColor: colors.surface,
@@ -345,6 +465,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.round,
     marginRight: spacing.sm,
+    minWidth: 80, // Ensure minimum width for consistency
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryButtonActive: {
     backgroundColor: colors.primary,
@@ -355,6 +478,29 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: colors.background,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl * 2,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyStateTitle: {
+    ...typography.h3,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptyStateSubtext: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

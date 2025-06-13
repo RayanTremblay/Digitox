@@ -18,14 +18,22 @@ import { registerUser, loginUser } from '../../firebase/auth';
 import { setUserData } from '../../firebase/firestore';
 
 interface LoginScreenProps {
-  onAuthSuccess: () => void;
+  navigation: any;
+  route: {
+    params: {
+      onAuthSuccess: () => void;
+    };
+  };
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
+  const { onAuthSuccess } = route.params;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,6 +50,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!isLogin && (!firstName.trim() || !lastName.trim())) {
+      Alert.alert('Error', 'Please enter your first and last name');
       return;
     }
 
@@ -73,11 +86,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
       } else {
         const result = await registerUser(email, password);
         if (result.success && result.user) {
-          // Set initial user data
           await setUserData(result.user.uid, {
             email: email,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            displayName: `${firstName.trim()} ${lastName.trim()}`,
             createdAt: new Date().toISOString(),
-            displayName: email.split('@')[0],
           });
           onAuthSuccess();
         } else {
@@ -96,6 +110,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setFirstName('');
+    setLastName('');
     setShowPassword(false);
     setShowConfirmPassword(false);
   };
@@ -121,6 +137,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
           </View>
 
           <View style={styles.formContainer}>
+            {!isLogin && (
+              <>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="First Name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Last Name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+              </>
+            )}
+
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
@@ -203,6 +249,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthSuccess }) => {
                 )}
               </LinearGradient>
             </TouchableOpacity>
+
+            {isLogin && (
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
@@ -303,6 +358,15 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
+  },
+  forgotPasswordButton: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  forgotPasswordText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '500',
   },
 });
 

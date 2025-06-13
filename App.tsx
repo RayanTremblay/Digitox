@@ -1,7 +1,8 @@
 import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import LoginScreen from './src/screens/LoginScreen';
+import AuthNavigator from './src/navigation/AuthNavigator';
 import { SplashScreen } from './app/components/SplashScreen';
 
 const AppContent = () => {
@@ -11,14 +12,16 @@ const AppContent = () => {
     return <SplashScreen />;
   }
 
-  // Show login screen if user is not authenticated or it's first launch
+  // Show auth navigator if user is not authenticated or it's first launch
   if (!user || isFirstLaunch) {
     return (
-      <LoginScreen 
-        onAuthSuccess={() => {
-          setIsFirstLaunch(false);
-        }} 
-      />
+      <NavigationContainer>
+        <AuthNavigator 
+          onAuthSuccess={() => {
+            setIsFirstLaunch(false);
+          }} 
+        />
+      </NavigationContainer>
     );
   }
 
