@@ -12,6 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LoginScreen from './LoginScreen';
 import ReferralModal from '../components/ReferralModal';
+import DailyRewardsModal from '../components/DailyRewardsModal';
+import { claimDailyReward, getDailyRewardsStats } from '../utils/dailyRewardsManager';
 
 
 type RootStackParamList = {
@@ -39,6 +41,13 @@ const HomeScreen = () => {
   const [newGoalValue, setNewGoalValue] = useState('');
   const [boostMultiplier, setBoostMultiplier] = useState(1); // Default multiplier is 1x
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showDailyRewardsModal, setShowDailyRewardsModal] = useState(false);
+  const [dailyRewardsStats, setDailyRewardsStats] = useState({
+    claimsToday: 0,
+    maxClaims: 3,
+    remainingClaims: 3,
+    canClaim: true,
+  });
 
   // Get current day and create week data
   const getCurrentWeekData = () => {
@@ -71,6 +80,7 @@ const HomeScreen = () => {
   useEffect(() => {
     loadDailyStats();
     loadDailyGoal();
+    loadDailyRewardsStats();
   }, []);
 
   const loadDailyStats = async () => {
@@ -110,6 +120,46 @@ const HomeScreen = () => {
     }
   };
 
+  const loadDailyRewardsStats = async () => {
+    try {
+      const stats = await getDailyRewardsStats();
+      setDailyRewardsStats(stats);
+    } catch (error) {
+      console.error('Error loading daily rewards stats:', error);
+    }
+  };
+
+  const handleClaimDailyReward = async () => {
+    try {
+      const result = await claimDailyReward();
+      
+      if (result.success && result.reward !== undefined) {
+        // Reload stats to update UI
+        await loadDailyRewardsStats();
+        await loadDailyStats(); // Update balance display
+        
+        Alert.alert(
+          'Daily Reward Claimed! 🎉',
+          `Congratulations! You earned ${result.reward} Digicoins!`,
+          [{ text: 'Awesome!' }]
+        );
+      } else {
+        Alert.alert(
+          'Claim Failed',
+          result.error || 'Failed to claim daily reward. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error claiming daily reward:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleSaveGoal = async () => {
     try {
       // Parse and validate the new goal value
@@ -143,6 +193,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadDailyStats();
+      loadDailyRewardsStats();
     });
 
     return unsubscribe;
@@ -269,13 +320,28 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.rewardCard}>
-              <Text style={styles.rewardValue}>0/3</Text>
+            <TouchableOpacity 
+              style={styles.rewardCard}
+              onPress={() => setShowDailyRewardsModal(true)}
+            >
+              <Text style={styles.rewardValue}>
+                {dailyRewardsStats.claimsToday}/{dailyRewardsStats.maxClaims}
+              </Text>
               <Text style={styles.rewardText}>Daily Rewards claimed</Text>
-              <TouchableOpacity style={styles.rewardButton}>
-                <Text style={styles.rewardButtonText}>Claim</Text>
-              </TouchableOpacity>
-            </View>
+              <View 
+                style={[
+                  styles.rewardButton,
+                  !dailyRewardsStats.canClaim && styles.rewardButtonDisabled
+                ]}
+              >
+                <Text style={[
+                  styles.rewardButtonText,
+                  !dailyRewardsStats.canClaim && styles.rewardButtonTextDisabled
+                ]}>
+                  {dailyRewardsStats.canClaim ? 'Claim' : 'Done'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.rewardCard}>
               <Text style={styles.rewardValue}>2X</Text>
@@ -362,6 +428,17 @@ const HomeScreen = () => {
         onReferralComplete={() => {
           // Reload stats when a referral is completed
           loadDailyStats();
+        }}
+      />
+
+      {/* Daily Rewards Modal */}
+      <DailyRewardsModal
+        visible={showDailyRewardsModal}
+        onClose={() => setShowDailyRewardsModal(false)}
+        onRewardClaimed={() => {
+          // Reload stats when a reward is claimed
+          loadDailyRewardsStats();
+          loadDailyStats(); // Update balance display
         }}
       />
     </LinearGradient>
@@ -537,6 +614,13 @@ const styles = StyleSheet.create({
   rewardButtonText: {
     ...typography.caption,
     color: colors.text,
+  },
+  rewardButtonDisabled: {
+    backgroundColor: colors.surface,
+    opacity: 0.5,
+  },
+  rewardButtonTextDisabled: {
+    color: colors.textSecondary,
   },
   modalOverlay: {
     flex: 1,
