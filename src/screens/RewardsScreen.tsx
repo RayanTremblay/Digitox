@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import ScratchCard, { ScratchReward } from '../components/ScratchCard';
+import DrawCard from '../components/DrawCard';
 import { purchaseScratchCard, processReward, getScratchCardCost } from '../utils/scratchCardManager';
 import { getDigicoinsBalance } from '../utils/storage';
+import adManager from '../utils/adManager';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -21,6 +23,8 @@ const RewardsScreen = () => {
   const [userBalance, setUserBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [scratchCardKey, setScratchCardKey] = useState(0); // For resetting scratch card
+
+  const SCRATCH_CARD_COST = 5;
 
   // Load user balance
   const loadUserBalance = async () => {
@@ -43,40 +47,64 @@ const RewardsScreen = () => {
     }, [])
   );
 
-  const handleScratchCardPurchase = async (): Promise<boolean> => {
+  const handlePurchaseAndWatchAd = async (): Promise<boolean> => {
     if (isLoading) return false;
 
     setIsLoading(true);
     
     try {
-      const cost = getScratchCardCost();
-      
-      if (userBalance < cost) {
+      // Check if user has enough balance
+      if (userBalance < SCRATCH_CARD_COST) {
         Alert.alert(
           'Insufficient Balance',
-          `You need ${cost} Digicoins to purchase a scratch card. You currently have ${userBalance.toFixed(2)} Digicoins.`,
+          `You need ${SCRATCH_CARD_COST} Digicoins to purchase a scratch card. You currently have ${userBalance.toFixed(2)} Digicoins.`,
           [{ text: 'OK' }]
         );
         return false;
       }
 
-      const success = await purchaseScratchCard();
+      // First, purchase the scratch card (deduct 5 Digicoins)
+      const purchaseSuccess = await purchaseScratchCard();
       
-      if (success) {
-        // Update local balance immediately
-        setUserBalance(prev => prev - cost);
-        return true;
-      } else {
+      if (!purchaseSuccess) {
         Alert.alert('Error', 'Failed to purchase scratch card. Please try again.');
         return false;
       }
+
+      // Update local balance immediately after purchase
+      setUserBalance(prev => prev - SCRATCH_CARD_COST);
+
+      // Then, show the ad
+      const adResult = await adManager.showRewardedAd();
+      
+      if (!adResult.success) {
+        Alert.alert(
+          'Ad Required',
+          'You need to watch the full ad to complete your scratch card purchase. Your 5 Digicoins have been refunded.',
+          [{ text: 'OK' }]
+        );
+        
+        // Refund the Digicoins since ad wasn't watched
+        setUserBalance(prev => prev + SCRATCH_CARD_COST);
+        return false;
+      }
+
+      // Preload next ad for better UX
+      adManager.preloadAd();
+      return true;
+
     } catch (error) {
-      console.error('Error purchasing scratch card:', error);
+      console.error('Error in purchase and ad flow:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       return false;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleReplay = () => {
+    // Preload ad for next play
+    adManager.preloadAd();
   };
 
   const handleRewardRevealed = async (reward: ScratchReward) => {
@@ -91,29 +119,13 @@ const RewardsScreen = () => {
           Alert.alert(
             'Congratulations! 🎉',
             `You won ${reward.displayText}! Your new balance is ${(userBalance + reward.amount).toFixed(2)} Digicoins.`,
-            [
-              {
-                text: 'Play Again',
-                onPress: () => {
-                  setScratchCardKey(prev => prev + 1); // Reset scratch card
-                }
-              },
-              { text: 'OK' }
-            ]
+            [{ text: 'Awesome!' }]
           );
         } else {
           Alert.alert(
             'Amazing! 🎁',
             `You won a ${reward.displayText}! The gift card code will be sent to your email within 24 hours.`,
-            [
-              {
-                text: 'Play Again',
-                onPress: () => {
-                  setScratchCardKey(prev => prev + 1); // Reset scratch card
-                }
-              },
-              { text: 'OK' }
-            ]
+            [{ text: 'Incredible!' }]
           );
         }
       } else {
@@ -147,46 +159,31 @@ const RewardsScreen = () => {
             <ScratchCard
               key={scratchCardKey}
               onRewardRevealed={handleRewardRevealed}
-              onPurchase={handleScratchCardPurchase}
-              disabled={isLoading || userBalance < getScratchCardCost()}
+              onPurchaseAndWatchAd={handlePurchaseAndWatchAd}
+              onReplay={handleReplay}
+              disabled={isLoading}
+              userBalance={userBalance}
             />
             
             <View style={styles.scratchCardInfo}>
               <Text style={styles.infoText}>
-                💎 Cost: {getScratchCardCost()} Digicoins
+                Cost: {SCRATCH_CARD_COST} Digicoins + Ad
               </Text>
               <Text style={styles.infoText}>
-                💰 Your Balance: {userBalance.toFixed(2)} Digicoins
+                Your Balance: {userBalance.toFixed(2)} Digicoins
               </Text>
               <Text style={styles.infoSubtext}>
-                Win Digicoins (70% chance) or Amazon Gift Cards up to $20 (30% chance)
+                Pay {SCRATCH_CARD_COST} Digicoins and watch an ad to play • Win Digicoins or Amazon Gift Cards up to $20!
               </Text>
             </View>
           </View>
 
           <Text style={styles.sectionTitle}>Draw</Text>
 
-          <View style={styles.drawCard}>
-            <View style={styles.drawContent}>
-              <View>
-                <View style={styles.drawHeader}>
-                  <Image
-                    source={require('../assets/logo.png')}
-                    style={styles.rewardIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.rewardValue}>+2.00</Text>
-                </View>
-                <Text style={styles.drawTitle}>Macbook M4 Pro</Text>
-                <Text style={styles.drawDescription}>Buy tickets to get the chance to win a Macbook M4 Pro</Text>
-                <TouchableOpacity style={styles.drawButton}>
-                  <Text style={styles.drawButtonText}>Enter Draw</Text>
-                </TouchableOpacity>
-                <Text style={styles.timeLeft}>05h:04m:40s</Text>
-                </View>
-              
-            </View>
-          </View>
+          <DrawCard
+            userBalance={userBalance}
+            onBalanceUpdate={loadUserBalance}
+          />
         </View>
       </ScrollView>
     </LinearGradient>
@@ -243,61 +240,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontStyle: 'italic',
   },
-  rewardIcon: {
-    width: 24,
-    height: 24,
-    marginRight: spacing.xs,
-  },
-  rewardValue: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  drawCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  drawContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  drawHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  drawTitle: {
-    ...typography.h3,
-    marginBottom: spacing.sm,
-  },
-  drawDescription: {
-    ...typography.body,
-    marginBottom: spacing.lg,
-  },
-  drawButton: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.round,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  drawButtonText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  timeLeft: {
-    ...typography.caption,
-  },
-  productImage: {
-    width: 120,
-    height: 120,
-    marginLeft: spacing.lg,
-  },
+
 });
 
 export default RewardsScreen; 

@@ -50,13 +50,13 @@ export const getScratchCardCost = (): number => {
   return SCRATCH_CARD_COST;
 };
 
-// Statistics for tracking
+// Statistics for tracking (updated odds)
 export const getScratchCardStats = () => {
   return {
     cost: SCRATCH_CARD_COST,
     odds: {
-      digicoin: 70, // 70% chance
-      amazon: 30,   // 30% chance
+      digicoin: 99.933, // 99.933% chance (1499 out of 1500)
+      amazon: 0.067,    // 0.067% chance (1 out of 1500)
     },
     digicoinsRange: [1, 2, 3, 5, 8, 10],
     amazonRange: [5, 10, 15, 20],

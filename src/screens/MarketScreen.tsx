@@ -15,7 +15,9 @@ import {
   deductDigicoins, 
   addRedeemedReward,
   getDigicoinsBalance,
-  updateStatsOnRedemption
+  updateStatsOnRedemption,
+  getRedeemedRewards,
+  RedeemedReward
 } from '../utils/storage';
 import {
   assignPromoCodeToUser,
@@ -40,6 +42,7 @@ const MarketScreen = () => {
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
+  const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
   const [redemptionModalProps, setRedemptionModalProps] = useState({
     scenario: 'success' as 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
     promoCode: '',
@@ -52,6 +55,7 @@ const MarketScreen = () => {
   useEffect(() => {
     const initializeApp = async () => {
       await loadUserBalance();
+      await loadRedeemedRewards();
       await autoInitializeYourCodes(); // Auto-initialize your promo codes
     };
     initializeApp();
@@ -64,6 +68,16 @@ const MarketScreen = () => {
     } catch (error) {
       console.error('Error loading user balance:', error);
       setUserBalance(1000); // Set to 1000 as fallback
+    }
+  };
+
+  const loadRedeemedRewards = async () => {
+    try {
+      const redeemed = await getRedeemedRewards();
+      setRedeemedRewards(redeemed);
+    } catch (error) {
+      console.error('Error loading redeemed rewards:', error);
+      setRedeemedRewards([]);
     }
   };
 
@@ -223,7 +237,21 @@ const MarketScreen = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const isRewardRedeemed = (rewardId: string): boolean => {
+    return redeemedRewards.some(redeemed => redeemed.id === rewardId);
+  };
+
   const handleRedeem = (reward: Reward) => {
+    // Check if already redeemed before showing confirmation
+    if (isRewardRedeemed(reward.id)) {
+      Alert.alert(
+        'Already Redeemed',
+        'You have already redeemed this offer.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     setSelectedReward(reward);
     setShowConfirmation(true);
   };
@@ -292,6 +320,9 @@ const MarketScreen = () => {
 
       // Update stats
       await updateStatsOnRedemption(reward.digicoins);
+
+      // Reload redeemed rewards to update UI
+      await loadRedeemedRewards();
 
       // Show success modal with promo code
       showRedemptionResult('success', userPromoCode.code, reward.title);
@@ -362,6 +393,7 @@ const MarketScreen = () => {
                 key={reward.id}
                 reward={reward}
                 onRedeem={() => handleRedeem(reward)}
+                isRedeemed={isRewardRedeemed(reward.id)}
               />
             ))
           ) : (

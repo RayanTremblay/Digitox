@@ -11,6 +11,7 @@ import { getDigiStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStat
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LoginScreen from './LoginScreen';
+import ReferralModal from '../components/ReferralModal';
 
 
 type RootStackParamList = {
@@ -37,6 +38,7 @@ const HomeScreen = () => {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [newGoalValue, setNewGoalValue] = useState('');
   const [boostMultiplier, setBoostMultiplier] = useState(1); // Default multiplier is 1x
+  const [showReferralModal, setShowReferralModal] = useState(false);
 
   // Get current day and create week data
   const getCurrentWeekData = () => {
@@ -233,7 +235,10 @@ const HomeScreen = () => {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.inviteCard}>
+          <TouchableOpacity 
+            style={styles.inviteCard}
+            onPress={() => setShowReferralModal(true)}
+          >
             <Text style={styles.inviteTitle}>Invite friends & win a giftcard</Text>
             <Text style={styles.inviteSubtitle}>Join the challenge</Text>
           </TouchableOpacity>
@@ -249,7 +254,10 @@ const HomeScreen = () => {
                 <Text style={styles.rewardValue}>20</Text>
               </View>
               <Text style={styles.rewardText}>For inviting a friend</Text>
-              <TouchableOpacity style={styles.rewardButton}>
+              <TouchableOpacity 
+                style={styles.rewardButton}
+                onPress={() => setShowReferralModal(true)}
+              >
                 <View style={styles.buttonContent}>
                   <Image
                     source={require('../assets/logo.png')}
@@ -346,6 +354,16 @@ const HomeScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Referral Modal */}
+      <ReferralModal
+        visible={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+        onReferralComplete={() => {
+          // Reload stats when a referral is completed
+          loadDailyStats();
+        }}
+      />
     </LinearGradient>
   );
 };

@@ -20,13 +20,15 @@ interface RewardCardProps {
   onRedeem?: () => void;
   showFooter?: boolean;
   showRedeemButton?: boolean;
+  isRedeemed?: boolean;
 }
 
 const RewardCard = ({ 
   reward, 
   onRedeem,
   showFooter = true,
-  showRedeemButton = true 
+  showRedeemButton = true,
+  isRedeemed = false
 }: RewardCardProps) => {
   // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -103,15 +105,21 @@ const RewardCard = ({
 
       {showRedeemButton && (
         <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-          <TouchableOpacity 
-            style={styles.redeemButton}
-            onPress={onRedeem}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.redeemButtonText}>Redeem</Text>
-          </TouchableOpacity>
+          {isRedeemed ? (
+            <View style={styles.redeemedButton}>
+              <Text style={styles.redeemedButtonText}>✅ Already Redeemed</Text>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.redeemButton}
+              onPress={onRedeem}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.redeemButtonText}>Redeem</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
     </Animated.View>
@@ -191,6 +199,19 @@ const styles = StyleSheet.create({
   redeemButtonText: {
     ...typography.body,
     color: colors.background,
+    fontWeight: '600',
+  },
+  redeemedButton: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+  },
+  redeemedButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
 });
