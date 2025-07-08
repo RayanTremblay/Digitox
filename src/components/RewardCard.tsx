@@ -18,6 +18,7 @@ export interface Reward {
 interface RewardCardProps {
   reward: Reward;
   onRedeem?: () => void;
+  onShowRedeemedCode?: () => void;
   showFooter?: boolean;
   showRedeemButton?: boolean;
   isRedeemed?: boolean;
@@ -26,6 +27,7 @@ interface RewardCardProps {
 const RewardCard = ({ 
   reward, 
   onRedeem,
+  onShowRedeemedCode,
   showFooter = true,
   showRedeemButton = true,
   isRedeemed = false
@@ -106,9 +108,15 @@ const RewardCard = ({
       {showRedeemButton && (
         <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
           {isRedeemed ? (
-            <View style={styles.redeemedButton}>
+            <TouchableOpacity 
+              style={styles.redeemedButton}
+              onPress={onShowRedeemedCode}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              activeOpacity={0.8}
+            >
               <Text style={styles.redeemedButtonText}>✅ Already Redeemed</Text>
-            </View>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity 
               style={styles.redeemButton}

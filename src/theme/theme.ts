@@ -1,5 +1,6 @@
 export const colors = {
   primary: '#6C63FF',
+  primaryDark: '#5A52E5',
   background: '#1A1B1E',
   surface: 'rgba(255, 255, 255, 0.1)',
   surfaceLight: 'rgba(255, 255, 255, 0.15)',
@@ -10,6 +11,8 @@ export const colors = {
   success: '#4CAF50',
   warning: '#FFC107',
   info: '#2196F3',
+  white: '#FFFFFF',
+  border: 'rgba(255, 255, 255, 0.2)',
 };
 
 type FontWeight = '400' | '500' | '600' | '700' | 'normal' | 'bold';
@@ -59,6 +62,21 @@ export const typography = {
     color: colors.textSecondary,
     letterSpacing: 0.1,
     lineHeight: 20,
+  },
+  button: {
+    fontSize: 16,
+    fontFamily: 'Maitree_600SemiBold',
+    fontWeight: '600' as FontWeight,
+    letterSpacing: 0.1,
+    lineHeight: 20,
+  },
+  h4: {
+    fontSize: 18,
+    fontFamily: 'Maitree_600SemiBold',
+    fontWeight: '600' as FontWeight,
+    color: colors.text,
+    letterSpacing: 0.15,
+    lineHeight: 24,
   },
 };
 

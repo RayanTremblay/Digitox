@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import RewardCard, { Reward } from '../components/RewardCard';
 import RedeemConfirmationModal from '../components/RedeemConfirmationModal';
 import RedemptionModal from '../components/RedemptionModal';
+import RedeemedCodeModal from '../components/RedeemedCodeModal';
 import { Ionicons } from '@expo/vector-icons';
 import { 
   getDigiStats, 
@@ -42,6 +43,7 @@ const MarketScreen = () => {
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
+  const [showRedeemedCodeModal, setShowRedeemedCodeModal] = useState(false);
   const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
   const [redemptionModalProps, setRedemptionModalProps] = useState({
     scenario: 'success' as 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
@@ -256,6 +258,11 @@ const MarketScreen = () => {
     setShowConfirmation(true);
   };
 
+  const handleShowRedeemedCode = (reward: Reward) => {
+    setSelectedReward(reward);
+    setShowRedeemedCodeModal(true);
+  };
+
   const showRedemptionResult = (
     scenario: 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
     promoCode?: string,
@@ -393,6 +400,7 @@ const MarketScreen = () => {
                 key={reward.id}
                 reward={reward}
                 onRedeem={() => handleRedeem(reward)}
+                onShowRedeemedCode={() => handleShowRedeemedCode(reward)}
                 isRedeemed={isRewardRedeemed(reward.id)}
               />
             ))
@@ -437,6 +445,16 @@ const MarketScreen = () => {
         rewardTitle={redemptionModalProps.rewardTitle}
         userBalance={redemptionModalProps.userBalance}
         requiredAmount={redemptionModalProps.requiredAmount}
+      />
+
+      {/* Redeemed Code Modal */}
+      <RedeemedCodeModal
+        visible={showRedeemedCodeModal}
+        reward={selectedReward}
+        onClose={() => {
+          setShowRedeemedCodeModal(false);
+          setSelectedReward(null);
+        }}
       />
     </LinearGradient>
   );

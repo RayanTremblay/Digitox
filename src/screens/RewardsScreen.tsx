@@ -2,35 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import Header from '../components/Header';
 import ScratchCard, { ScratchReward } from '../components/ScratchCard';
-import DrawCard from '../components/DrawCard';
+import MinimalDrawCard from '../components/MinimalDrawCard';
 import { purchaseScratchCard, processReward, getScratchCardCost } from '../utils/scratchCardManager';
 import { getDigicoinsBalance } from '../utils/storage';
+import { getActiveDraws, DrawEntry } from '../utils/drawManager';
 import adManager from '../utils/adManager';
 
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-};
-
-type NavigationProp = StackNavigationProp<RootStackParamList>;
-
 const RewardsScreen = () => {
-  const navigation = useNavigation<NavigationProp>();
   const [userBalance, setUserBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [scratchCardKey, setScratchCardKey] = useState(0); // For resetting scratch card
+  const [scratchCardKey, setScratchCardKey] = useState(0);
+  const [draws, setDraws] = useState<DrawEntry[]>([]);
 
   const SCRATCH_CARD_COST = 5;
 
-  // Load user balance
+  // Load user balance and draws
   const loadUserBalance = async () => {
     try {
-      const balance = await getDigicoinsBalance();
+      const [balance, activeDraws] = await Promise.all([
+        getDigicoinsBalance(),
+        getActiveDraws(),
+      ]);
       setUserBalance(balance);
+      setDraws(activeDraws);
     } catch (error) {
       console.error('Error loading user balance:', error);
     }
@@ -178,12 +175,20 @@ const RewardsScreen = () => {
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Draw</Text>
-
-          <DrawCard
-            userBalance={userBalance}
-            onBalanceUpdate={loadUserBalance}
-          />
+          <Text style={styles.sectionTitle}>Prize Draws</Text>
+          
+          <View style={styles.drawsContainer}>
+            {draws.map((draw) => (
+              <MinimalDrawCard
+                key={draw.id}
+                draw={draw}
+                onRefresh={loadUserBalance}
+              />
+            ))}
+            {draws.length === 0 && (
+              <Text style={styles.noDrawsText}>No active draws available</Text>
+            )}
+          </View>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -238,6 +243,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+    fontStyle: 'italic',
+  },
+  drawsContainer: {
+    marginHorizontal: spacing.md,
+  },
+  noDrawsText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: spacing.lg,
     fontStyle: 'italic',
   },
 

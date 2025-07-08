@@ -435,6 +435,7 @@ const DetoxScreen = () => {
                   onPress={() => {
                     console.log('Cancelling custom duration');
                     setShowCustomDurationModal(false);
+                    navigation.navigate('MainTabs');
                   }}
                 >
                   <Text style={styles.customDurationButtonText}>Cancel</Text>

@@ -182,7 +182,7 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
   const renderScratchSurface = () => (
     <View style={styles.scratchSurface}>
       <LinearGradient
-        colors={[colors.primary, '#8B7EFF']}
+        colors={['#1D2024', '#6E7A8A']}
         style={styles.scratchGradient}
       >
         <TouchableOpacity 
@@ -235,7 +235,7 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
         ]}
       >
         <LinearGradient
-          colors={reward.type === 'digicoin' ? [colors.primary, '#8B7EFF'] : ['#FF6B35', '#F7931E']}
+          colors={reward.type === 'digicoin' ? ['#1D2024', '#6E7A8A'] : ['#FF6B35', '#F7931E']}
           style={styles.rewardGradient}
         >
           <View style={styles.rewardContent}>

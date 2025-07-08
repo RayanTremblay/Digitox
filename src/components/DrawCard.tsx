@@ -15,23 +15,27 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   DrawEntry,
   UserDrawData,
-  getCurrentDraw,
+  getDrawById,
   getUserDrawData,
   purchaseTickets,
   addFreeTickets,
   getTimeRemaining,
   canWatchAdForTickets,
+  getRarityColor,
+  getCategoryIcon,
   TICKET_COST,
   AD_REWARD_TICKETS,
 } from '../utils/drawManager';
 import adManager from '../utils/adManager';
 
 interface DrawCardProps {
+  drawId: string;
   userBalance: number;
   onBalanceUpdate: () => void;
+  style?: any;
 }
 
-const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => {
+const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdate, style }) => {
   const [draw, setDraw] = useState<DrawEntry | null>(null);
   const [userData, setUserData] = useState<UserDrawData>({ ticketsOwned: 0, totalSpent: 0 });
   const [timeRemaining, setTimeRemaining] = useState<string>('');
@@ -43,13 +47,17 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
   // Load draw data
   const loadDrawData = async () => {
     try {
-      const currentDraw = await getCurrentDraw();
+      const currentDraw = await getDrawById(drawId);
+      if (!currentDraw) {
+        console.error('Draw not found:', drawId);
+        return;
+      }
       setDraw(currentDraw);
       
-      const userDrawData = await getUserDrawData(currentDraw.id);
+      const userDrawData = await getUserDrawData(drawId);
       setUserData(userDrawData);
       
-      const adEligible = await canWatchAdForTickets(currentDraw.id);
+      const adEligible = await canWatchAdForTickets(drawId);
       setCanWatchAd(adEligible);
     } catch (error) {
       console.error('Error loading draw data:', error);
@@ -73,7 +81,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
   // Load data on mount
   useEffect(() => {
     loadDrawData();
-  }, []);
+  }, [drawId]);
 
   const handleWatchAdForTickets = async () => {
     if (!draw || isLoading || !canWatchAd) return;
@@ -84,7 +92,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
       const adResult = await adManager.showRewardedAd();
       
       if (adResult.success) {
-        const ticketsEarned = await addFreeTickets(draw.id, true);
+        const ticketsEarned = await addFreeTickets(drawId, true);
         
         if (ticketsEarned > 0) {
           // Update local state
@@ -97,12 +105,18 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
           
           Alert.alert(
             'Tickets Earned! 🎟️',
-            `You earned ${ticketsEarned} free tickets by watching the ad! You now have ${userData.ticketsOwned + ticketsEarned} tickets total.`,
+            `You earned ${ticketsEarned} free tickets by watching the ad! You now have ${userData.ticketsOwned + ticketsEarned} tickets for ${draw.title}.`,
             [{ text: 'Awesome!' }]
           );
           
           // Preload next ad
           adManager.preloadAd();
+        } else {
+          Alert.alert(
+            'Maximum Reached',
+            `You've reached the maximum number of tickets (${draw.maxTicketsPerUser}) for this draw.`,
+            [{ text: 'OK' }]
+          );
         }
       } else {
         Alert.alert(
@@ -148,10 +162,21 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
       return;
     }
 
+    // Check if user would exceed max tickets
+    if (draw.maxTicketsPerUser && userData.ticketsOwned + tickets > draw.maxTicketsPerUser) {
+      const remainingTickets = draw.maxTicketsPerUser - userData.ticketsOwned;
+      Alert.alert(
+        'Maximum Tickets Exceeded',
+        `You can only purchase ${remainingTickets} more ticket(s) for this draw. Maximum allowed: ${draw.maxTicketsPerUser}`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setIsLoading(true);
     
     try {
-      const success = await purchaseTickets(draw.id, tickets);
+      const success = await purchaseTickets(drawId, tickets);
       
       if (success) {
         // Update local state
@@ -169,7 +194,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
         
         Alert.alert(
           'Tickets Purchased! 🎟️',
-          `You successfully purchased ${tickets} ticket(s) for ${totalCost} Digicoins! You now have ${userData.ticketsOwned + tickets} tickets total.`,
+          `You successfully purchased ${tickets} ticket(s) for ${totalCost} Digicoins! You now have ${userData.ticketsOwned + tickets} tickets for ${draw.title}.`,
           [{ text: 'Great!' }]
         );
       } else {
@@ -177,7 +202,11 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
       }
     } catch (error) {
       console.error('Error purchasing tickets:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      if (error instanceof Error && error.message.includes('Maximum')) {
+        Alert.alert('Maximum Reached', error.message);
+      } else {
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -185,11 +214,15 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
 
   if (!draw) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, style]}>
         <Text style={styles.loadingText}>Loading draw...</Text>
       </View>
     );
   }
+
+  const rarityColor = getRarityColor(draw.rarity);
+  const categoryIcon = getCategoryIcon(draw.category);
+  const progressPercentage = draw.totalTickets > 0 ? Math.min((userData.ticketsOwned / draw.totalTickets) * 100, 100) : 0;
 
   const renderPurchaseModal = () => (
     <Modal
@@ -200,37 +233,59 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Purchase Tickets</Text>
-          
-          <View style={styles.inputContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Purchase Tickets</Text>
+            <TouchableOpacity 
+              onPress={() => setShowPurchaseModal(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.drawInfo}>
+            <Text style={styles.drawTitle}>{draw.title}</Text>
+            <Text style={styles.drawPrize}>{draw.prize}</Text>
+            <View style={styles.rarityBadge}>
+              <View style={[styles.rarityDot, { backgroundColor: rarityColor }]} />
+              <Text style={[styles.rarityText, { color: rarityColor }]}>
+                {draw.rarity.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.ticketInputContainer}>
             <Text style={styles.inputLabel}>Number of tickets:</Text>
             <TextInput
-              style={styles.textInput}
+              style={styles.ticketInput}
               value={ticketCount}
               onChangeText={setTicketCount}
               keyboardType="numeric"
-              placeholder="Enter number of tickets"
+              placeholder="1"
               placeholderTextColor={colors.textSecondary}
             />
-          </View>
-          
-          <View style={styles.costContainer}>
             <Text style={styles.costText}>
-              Cost: {parseInt(ticketCount, 10) || 0} × {TICKET_COST} = {(parseInt(ticketCount, 10) || 0) * TICKET_COST} Digicoins
-            </Text>
-            <Text style={styles.balanceText}>
-              Your Balance: {userBalance.toFixed(2)} Digicoins
+              Cost: {parseInt(ticketCount, 10) * TICKET_COST || 0} Digicoins
             </Text>
           </View>
-          
-          <View style={styles.modalButtons}>
+
+          <View style={styles.userStats}>
+            <Text style={styles.statText}>Your tickets: {userData.ticketsOwned}</Text>
+            <Text style={styles.statText}>Total spent: {userData.totalSpent} Digicoins</Text>
+            {draw.maxTicketsPerUser && (
+              <Text style={styles.statText}>
+                Max allowed: {draw.maxTicketsPerUser} tickets
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.modalActions}>
             <TouchableOpacity
               style={[styles.modalButton, styles.cancelButton]}
               onPress={() => setShowPurchaseModal(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
             <TouchableOpacity
               style={[styles.modalButton, styles.purchaseButton]}
               onPress={handlePurchaseTickets}
@@ -241,87 +296,96 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
               </Text>
             </TouchableOpacity>
           </View>
-          
-          <View style={styles.adOption}>
-            <Text style={styles.adOptionText}>
-              Or watch an ad to get {AD_REWARD_TICKETS} free tickets!
-            </Text>
-            <TouchableOpacity
-              style={[styles.adButton, !canWatchAd && styles.disabledButton]}
-              onPress={() => {
-                setShowPurchaseModal(false);
-                handleWatchAdForTickets();
-              }}
-              disabled={!canWatchAd}
-            >
-              <Ionicons name="play-circle" size={16} color={colors.text} />
-              <Text style={styles.adButtonText}>
-                {canWatchAd ? 'Watch Ad' : 'Wait 5min'}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <LinearGradient
-        colors={[colors.surface, '#2A2D32']}
-        style={styles.gradient}
+        colors={[colors.primary, colors.primaryDark]}
+        style={styles.card}
       >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.prizeIcon}
-              resizeMode="contain"
+        {/* Header with rarity and category */}
+        <View style={styles.header}>
+          <View style={styles.categoryContainer}>
+            <Ionicons name={categoryIcon} size={16} color={colors.white} />
+            <Text style={styles.categoryText}>{draw.category.toUpperCase()}</Text>
+          </View>
+          <View style={styles.rarityBadge}>
+            <View style={[styles.rarityDot, { backgroundColor: rarityColor }]} />
+            <Text style={[styles.rarityText, { color: rarityColor }]}>
+              {draw.rarity.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Prize info */}
+        <View style={styles.prizeSection}>
+          <Text style={styles.prizeTitle}>{draw.title}</Text>
+          <Text style={styles.prizeValue}>{draw.prizeValue}</Text>
+          <Text style={styles.prizeDescription}>{draw.description}</Text>
+        </View>
+
+        {/* Progress bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View 
+              style={[styles.progressFill, { width: `${progressPercentage}%` }]} 
             />
-            <Text style={styles.prizeValue}>MacBook M4 Pro</Text>
           </View>
-          
-          <Text style={styles.prizeTitle}>{draw.prize}</Text>
-          <Text style={styles.description}>
-            Buy tickets to get the chance to win a {draw.prize}
+          <Text style={styles.progressText}>
+            {userData.ticketsOwned} / {draw.totalTickets} tickets
           </Text>
-          
-          <View style={styles.statsContainer}>
-            <Text style={styles.statText}>
-              Your Tickets: {userData.ticketsOwned}
-            </Text>
-            <Text style={styles.statText}>
-              Total Spent: {userData.totalSpent} Digicoins
-            </Text>
+        </View>
+
+        {/* Time remaining */}
+        <View style={styles.timeContainer}>
+          <Ionicons name="time" size={16} color={colors.white} />
+          <Text style={styles.timeText}>{timeRemaining}</Text>
+        </View>
+
+        {/* User stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Your Tickets</Text>
+            <Text style={styles.statValue}>{userData.ticketsOwned}</Text>
           </View>
-          
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.enterButton, isLoading && styles.disabledButton]}
-              onPress={() => setShowPurchaseModal(true)}
-              disabled={isLoading}
-            >
-              <Text style={styles.enterButtonText}>
-                {isLoading ? 'Loading...' : 'Buy Tickets'}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.adButton, (!canWatchAd || isLoading) && styles.disabledButton]}
-              onPress={handleWatchAdForTickets}
-              disabled={!canWatchAd || isLoading}
-            >
-              <Ionicons name="play-circle" size={16} color={colors.text} />
-              <Text style={styles.adButtonText}>
-                {canWatchAd ? `+${AD_REWARD_TICKETS} Tickets` : 'Wait 5min'}
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Total Spent</Text>
+            <Text style={styles.statValue}>{userData.totalSpent}</Text>
           </View>
-          
-          <Text style={styles.timeLeft}>Time left: {timeRemaining}</Text>
+        </View>
+
+        {/* Action buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.buyButton]}
+            onPress={() => setShowPurchaseModal(true)}
+            disabled={isLoading}
+          >
+            <Ionicons name="wallet" size={16} color={colors.white} />
+            <Text style={styles.buyButtonText}>Buy Tickets</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton, 
+              styles.adButton,
+              !canWatchAd && styles.disabledButton
+            ]}
+            onPress={handleWatchAdForTickets}
+            disabled={isLoading || !canWatchAd}
+          >
+            <Ionicons name="add-circle" size={16} color={colors.white} />
+            <Text style={styles.adButtonText}>
+              {canWatchAd ? `+${AD_REWARD_TICKETS} Tickets` : 'Ad Cooldown'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
-      
+
       {renderPurchaseModal()}
     </View>
   );
@@ -329,122 +393,216 @@ const DrawCard: React.FC<DrawCardProps> = ({ userBalance, onBalanceUpdate }) => 
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.xl,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-  },
-  gradient: {
-    padding: spacing.lg,
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  prizeIcon: {
-    width: 24,
-    height: 24,
-    marginRight: spacing.xs,
-  },
-  prizeValue: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  prizeTitle: {
-    ...typography.h3,
-    marginBottom: spacing.sm,
-    color: colors.text,
-  },
-  description: {
-    ...typography.body,
-    color: colors.textSecondary,
     marginBottom: spacing.md,
-  },
-  statsContainer: {
-    marginBottom: spacing.md,
-  },
-  statText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs / 2,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-  },
-  enterButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  enterButtonText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  adButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 100,
-  },
-  adButtonText: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: '600',
-    marginLeft: spacing.xs / 2,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  timeLeft: {
-    ...typography.caption,
-    color: colors.textSecondary,
   },
   loadingContainer: {
     padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
   },
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
   },
+  card: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    margin: spacing.xs,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  categoryText: {
+    ...typography.caption,
+    color: colors.white,
+    marginLeft: spacing.xs,
+    fontWeight: '600',
+  },
+  rarityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  rarityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: spacing.xs,
+  },
+  rarityText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  prizeSection: {
+    marginBottom: spacing.md,
+  },
+  prizeTitle: {
+    ...typography.h3,
+    color: colors.white,
+    fontWeight: 'bold',
+    marginBottom: spacing.xs,
+  },
+  prizeValue: {
+    ...typography.h4,
+    color: colors.accent,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  prizeDescription: {
+    ...typography.body,
+    color: colors.white,
+    opacity: 0.8,
+  },
+  progressContainer: {
+    marginBottom: spacing.md,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: 4,
+  },
+  progressText: {
+    ...typography.caption,
+    color: colors.white,
+    textAlign: 'center',
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  timeText: {
+    ...typography.body,
+    color: colors.white,
+    marginLeft: spacing.xs,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.white,
+    opacity: 0.8,
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    ...typography.h4,
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  buyButton: {
+    backgroundColor: colors.accent,
+  },
+  adButton: {
+    backgroundColor: colors.success,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  buyButtonText: {
+    ...typography.button,
+    color: colors.white,
+    marginLeft: spacing.xs,
+  },
+  adButtonText: {
+    ...typography.button,
+    color: colors.white,
+    marginLeft: spacing.xs,
+  },
+  
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
   },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    width: '100%',
+    width: '90%',
     maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   modalTitle: {
     ...typography.h3,
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
+    fontWeight: 'bold',
   },
-  inputContainer: {
+  closeButton: {
+    padding: spacing.xs,
+  },
+  drawInfo: {
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  drawTitle: {
+    ...typography.h4,
+    color: colors.text,
+    fontWeight: 'bold',
+    marginBottom: spacing.xs,
+  },
+  drawPrize: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  ticketInputContainer: {
     marginBottom: spacing.md,
   },
   inputLabel: {
@@ -452,66 +610,57 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
   },
-  textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  ticketInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: borderRadius.md,
-    padding: spacing.sm,
+    padding: spacing.md,
     ...typography.body,
     color: colors.text,
-  },
-  costContainer: {
-    marginBottom: spacing.lg,
-    padding: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: borderRadius.md,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
   costText: {
     ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.xs / 2,
-  },
-  balanceText: {
-    ...typography.caption,
     color: colors.textSecondary,
+    textAlign: 'center',
   },
-  modalButtons: {
-    flexDirection: 'row',
+  userStats: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  statText: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginHorizontal: spacing.xs,
   },
   cancelButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  cancelButtonText: {
-    ...typography.body,
-    color: colors.textSecondary,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   purchaseButton: {
     backgroundColor: colors.primary,
   },
-  purchaseButtonText: {
-    ...typography.body,
+  cancelButtonText: {
+    ...typography.button,
     color: colors.text,
-    fontWeight: '600',
   },
-  adOption: {
-    alignItems: 'center',
-    padding: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: borderRadius.md,
-  },
-  adOptionText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
+  purchaseButtonText: {
+    ...typography.button,
+    color: colors.white,
   },
 });
 
