@@ -419,7 +419,90 @@ export const purchaseTickets = async (drawId: string, ticketCount: number): Prom
   }
 };
 
-// Add free tickets from watching ads
+// Add free tickets from watching ads  
+export const addFreeTicketsFromAd = async (drawId: string): Promise<{ success: boolean; ticketsEarned: number; error?: string }> => {
+  try {
+    // Check if user can watch ad (cooldown)
+    const canWatch = await canWatchAdForTickets(drawId);
+    if (!canWatch) {
+      return {
+        success: false,
+        ticketsEarned: 0,
+        error: `Please wait ${AD_COOLDOWN_MINUTES} minutes between ads.`
+      };
+    }
+
+    // Show rewarded ad
+    console.log('🎯 DrawManager: Attempting to show rewarded ad for tickets...');
+    const adResult = await adManager.showRewardedAd();
+    console.log('🎯 DrawManager: Ad result:', adResult);
+    
+    if (!adResult.success) {
+      console.log('❌ DrawManager: Ad failed or was skipped, no tickets awarded');
+      return {
+        success: false,
+        ticketsEarned: 0,
+        error: 'Ad was skipped or failed to load. Please try again.'
+      };
+    }
+    
+    console.log('✅ DrawManager: Ad was successfully watched, awarding tickets');
+
+    // Ad was watched successfully, add tickets
+    const draw = await getDrawById(drawId);
+    if (!draw) {
+      throw new Error('Draw not found');
+    }
+    
+    const userData = await getUserDrawData(drawId);
+    const ticketsToAdd = AD_REWARD_TICKETS;
+    
+    // Check if user would exceed max tickets
+    if (draw.maxTicketsPerUser && userData.ticketsOwned + ticketsToAdd > draw.maxTicketsPerUser) {
+      const allowedTickets = draw.maxTicketsPerUser - userData.ticketsOwned;
+      if (allowedTickets <= 0) {
+        return {
+          success: false,
+          ticketsEarned: 0,
+          error: `You've reached the maximum number of tickets (${draw.maxTicketsPerUser}) for this draw.`
+        };
+      }
+      // Only add up to the maximum allowed
+      const newUserData: UserDrawData = {
+        ...userData,
+        ticketsOwned: draw.maxTicketsPerUser,
+        lastAdWatch: new Date(),
+      };
+      await updateUserDrawData(drawId, newUserData);
+      return {
+        success: true,
+        ticketsEarned: allowedTickets
+      };
+    }
+    
+    // Update user data
+    const newUserData: UserDrawData = {
+      ...userData,
+      ticketsOwned: userData.ticketsOwned + ticketsToAdd,
+      lastAdWatch: new Date(),
+    };
+    
+    await updateUserDrawData(drawId, newUserData);
+    return {
+      success: true,
+      ticketsEarned: ticketsToAdd
+    };
+  } catch (error) {
+    console.error('Error adding free tickets from ad:', error);
+    return {
+      success: false,
+      ticketsEarned: 0,
+      error: 'An unexpected error occurred. Please try again.'
+    };
+  }
+};
+
+// Add free tickets from watching ads (legacy function)
 export const addFreeTickets = async (drawId: string, watchedAd: boolean = false): Promise<number> => {
   try {
     const draw = await getDrawById(drawId);
@@ -464,11 +547,46 @@ export const addFreeTickets = async (drawId: string, watchedAd: boolean = false)
 // Check if user can watch ad for tickets
 export const canWatchAdForTickets = async (drawId: string): Promise<boolean> => {
   try {
-    // Allow unlimited ad watching for tickets
-    return true;
+    const userData = await getUserDrawData(drawId);
+    
+    // If user has never watched an ad, they can watch
+    if (!userData.lastAdWatch) {
+      return true;
+    }
+    
+    // Check cooldown (5 minutes between ads)
+    const now = new Date();
+    const lastWatch = new Date(userData.lastAdWatch);
+    const timeDiff = now.getTime() - lastWatch.getTime();
+    const minutesSinceLastAd = Math.floor(timeDiff / (1000 * 60));
+    
+    return minutesSinceLastAd >= AD_COOLDOWN_MINUTES;
   } catch (error) {
     console.error('Error checking ad eligibility:', error);
     return false;
+  }
+};
+
+// Get remaining cooldown time in minutes
+export const getAdCooldownRemaining = async (drawId: string): Promise<number> => {
+  try {
+    const userData = await getUserDrawData(drawId);
+    
+    // If user has never watched an ad, no cooldown
+    if (!userData.lastAdWatch) {
+      return 0;
+    }
+    
+    // Calculate remaining cooldown time
+    const now = new Date();
+    const lastWatch = new Date(userData.lastAdWatch);
+    const timeDiff = now.getTime() - lastWatch.getTime();
+    const minutesSinceLastAd = Math.floor(timeDiff / (1000 * 60));
+    
+    return Math.max(0, AD_COOLDOWN_MINUTES - minutesSinceLastAd);
+  } catch (error) {
+    console.error('Error getting ad cooldown:', error);
+    return 0;
   }
 };
 

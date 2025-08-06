@@ -3,7 +3,7 @@ import {
   getDoc, 
   setDoc
 } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db } from './firebaseConfig.ts';
 
 export const getUserData = async (uid) => {
   try {

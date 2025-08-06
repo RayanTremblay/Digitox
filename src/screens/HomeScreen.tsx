@@ -14,13 +14,10 @@ import LoginScreen from './LoginScreen';
 import ReferralModal from '../components/ReferralModal';
 import DailyRewardsModal from '../components/DailyRewardsModal';
 import { claimDailyReward, getDailyRewardsStats } from '../utils/dailyRewardsManager';
-
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  Detox: undefined;
-};
+import { activateAdBoost, getBoostStats, shouldApplyBoostMultiplier } from '../utils/boostManager';
+import achievementService from '../services/achievementService';
+import AchievementPreview from '../components/AchievementPreview';
+import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -47,6 +44,12 @@ const HomeScreen = () => {
     maxClaims: 3,
     remainingClaims: 3,
     canClaim: true,
+  });
+  const [boostStats, setBoostStats] = useState({
+    isAdBoostActive: false,
+    remainingMinutes: 0,
+    totalAdBoostsUsed: 0,
+    canActivateAdBoost: true,
   });
 
   // Get current day and create week data
@@ -78,9 +81,21 @@ const HomeScreen = () => {
   const [weekData, setWeekData] = useState(getCurrentWeekData());
 
   useEffect(() => {
-    loadDailyStats();
-    loadDailyGoal();
-    loadDailyRewardsStats();
+    const initializeHomeScreen = async () => {
+      await loadDailyStats();
+      loadDailyGoal();
+      loadDailyRewardsStats();
+      loadBoostStats();
+      
+      // Check achievements when home screen loads
+      try {
+        await achievementService.checkAchievements();
+      } catch (error) {
+        console.error('Error checking achievements on home screen:', error);
+      }
+    };
+    
+    initializeHomeScreen();
   }, []);
 
   const loadDailyStats = async () => {
@@ -96,12 +111,10 @@ const HomeScreen = () => {
     console.log('Converted minutes:', minutes); // Debug log
     setTimeSpent(minutes);
     
-    // Update boost multiplier based on time spent
-    if (minutes >= BOOST_THRESHOLD_MINUTES) {
-      setBoostMultiplier(2);
-    } else {
-      setBoostMultiplier(1);
-    }
+    // Update boost multiplier using new logic (considers both ad boost and time boost)
+    const boostResult = await shouldApplyBoostMultiplier(minutes);
+    setBoostMultiplier(boostResult.multiplier);
+    console.log('Boost multiplier:', boostResult.multiplier, 'Reason:', boostResult.reason);
     
     // Load weekly progress
     const progress = await getWeeklyProgress();
@@ -129,6 +142,15 @@ const HomeScreen = () => {
     }
   };
 
+  const loadBoostStats = async () => {
+    try {
+      const stats = await getBoostStats();
+      setBoostStats(stats);
+    } catch (error) {
+      console.error('Error loading boost stats:', error);
+    }
+  };
+
   const handleClaimDailyReward = async () => {
     try {
       const result = await claimDailyReward();
@@ -152,6 +174,37 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error('Error claiming daily reward:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleActivateBoost = async () => {
+    try {
+      const result = await activateAdBoost();
+      
+      if (result.success) {
+        // Reload stats to update UI
+        await loadBoostStats();
+        await loadDailyStats(); // Update boost multiplier display
+        
+        Alert.alert(
+          '2x Boost Activated! 🚀',
+          'Amazing! You now have 2x boost for the next 2 hours!',
+          [{ text: 'Awesome!' }]
+        );
+      } else {
+        Alert.alert(
+          'Boost Activation Failed',
+          result.error || 'Failed to activate boost. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error activating boost:', error);
       Alert.alert(
         'Error',
         'An unexpected error occurred. Please try again.',
@@ -194,6 +247,7 @@ const HomeScreen = () => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadDailyStats();
       loadDailyRewardsStats();
+      loadBoostStats();
     });
 
     return unsubscribe;
@@ -266,7 +320,9 @@ const HomeScreen = () => {
                 />
                 <Text style={styles.boostHint}>
                   {boostMultiplier > 1 
-                    ? "2x boost active!" 
+                    ? (boostStats.isAdBoostActive 
+                        ? `2x boost active! (${boostStats.remainingMinutes}min left)` 
+                        : "2x boost active!")
                     : `${Math.floor(BOOST_THRESHOLD_MINUTES - timeSpent)}min until 2x boost`}
                 </Text>
               </View>
@@ -343,14 +399,30 @@ const HomeScreen = () => {
               </View>
             </TouchableOpacity>
 
-            <View style={styles.rewardCard}>
+            <TouchableOpacity 
+              style={styles.rewardCard}
+              onPress={handleActivateBoost}
+            >
               <Text style={styles.rewardValue}>2X</Text>
               <Text style={styles.rewardText}>Activate 2X Boost</Text>
-              <TouchableOpacity style={styles.rewardButton}>
-                <Text style={styles.rewardButtonText}>Get 2X</Text>
-              </TouchableOpacity>
-            </View>
+              <View 
+                style={[
+                  styles.rewardButton,
+                  !boostStats.canActivateAdBoost && styles.rewardButtonDisabled
+                ]}
+              >
+                <Text style={[
+                  styles.rewardButtonText,
+                  !boostStats.canActivateAdBoost && styles.rewardButtonTextDisabled
+                ]}>
+                  {boostStats.canActivateAdBoost ? 'Watch Ad' : 'Active'}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
+
+          {/* Achievement Preview */}
+          <AchievementPreview onPress={() => navigation.navigate('Achievements')} />
           
           {/* Reset button for testing */}
           <TouchableOpacity 

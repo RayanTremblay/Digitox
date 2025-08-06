@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { getUserPromoCodeForOffer, UserPromoCode } from '../utils/codeManager';
 import { Reward } from './RewardCard';
+import { useAuth } from '../contexts/AuthContext';
 
 interface RedeemedCodeModalProps {
   visible: boolean;
@@ -12,6 +13,7 @@ interface RedeemedCodeModalProps {
 }
 
 const RedeemedCodeModal: React.FC<RedeemedCodeModalProps> = ({ visible, reward, onClose }) => {
+  const { user } = useAuth();
   const [promoCode, setPromoCode] = useState<UserPromoCode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,7 +28,7 @@ const RedeemedCodeModal: React.FC<RedeemedCodeModalProps> = ({ visible, reward, 
     
     setIsLoading(true);
     try {
-      const userId = 'user123'; // Replace with actual user ID from authentication
+      const userId = user?.uid || 'anonymous'; // Use actual authenticated user ID
       const userCode = await getUserPromoCodeForOffer(userId, reward.id);
       setPromoCode(userCode);
     } catch (error) {

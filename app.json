@@ -30,6 +30,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
+      }
+    },
     "plugins": [
       "expo-font",
       [
@@ -39,7 +44,26 @@
             "node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"
           ]
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-3131985902128037~3498329011",
+          "androidAppId": "ca-app-pub-3131985902128037~3498329011"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6E7A8A",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
       ]
-    ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#6E7A8A"
+    }
   }
 }

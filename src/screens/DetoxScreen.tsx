@@ -7,17 +7,16 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Circle, G } from 'react-native-svg';
 import Header from '../components/Header';
 import { getDigiStats, updateDigiStats, checkAndResetDailyStats } from '../utils/storage';
+import { shouldApplyBoostMultiplier } from '../utils/boostManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RootStackParamList } from '../types/navigation';
+import notificationService from '../services/notificationService';
+import achievementService from '../services/achievementService';
+import AchievementModal from '../components/AchievementModal';
 
 // Constants for boost feature
 const BOOST_THRESHOLD_MINUTES = 180; // 3 hours
 const BASE_COIN_RATE = 0.016666667; // 1 coin per hour (1/60 per minute)
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  Detox: undefined;
-};
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -64,6 +63,8 @@ const DetoxScreen = () => {
   const minutesInputRef = useRef<TextInput>(null);
   const [boostMultiplier, setBoostMultiplier] = useState(1);
   const [dailyTimeOffMinutes, setDailyTimeOffMinutes] = useState(0);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [currentAchievement, setCurrentAchievement] = useState<any>(null);
 
   useEffect(() => {
     // Load daily stats to check for boost multiplier
@@ -72,12 +73,9 @@ const DetoxScreen = () => {
       const minutes = Math.floor(stats.dailyTimeSaved / 60);
       setDailyTimeOffMinutes(minutes);
       
-      // Update boost multiplier based on time spent
-      if (minutes >= BOOST_THRESHOLD_MINUTES) {
-        setBoostMultiplier(2);
-      } else {
-        setBoostMultiplier(1);
-      }
+      // Update boost multiplier using new logic (considers both ad boost and time boost)
+      const boostResult = await shouldApplyBoostMultiplier(minutes);
+      setBoostMultiplier(boostResult.multiplier);
     };
     
     loadStats();
@@ -86,24 +84,30 @@ const DetoxScreen = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isActive) {
-      interval = setInterval(() => {
+      interval = setInterval(async () => {
         setTimeElapsed((prev) => {
           const newTime = prev + 1;
-          // Calculate earned Digicoins with boost multiplier
-          const totalMinutes = (dailyTimeOffMinutes + newTime / 60);
-          const currentBoost = totalMinutes >= BOOST_THRESHOLD_MINUTES ? 2 : 1;
           
-          // Apply the boost multiplier
-          const newEarnedDigicoins = (newTime / 60) * BASE_COIN_RATE * currentBoost;
-          
-          if (Math.abs(newEarnedDigicoins - earnedDigicoins) >= 0.01) {
-            setEarnedDigicoins(Number(newEarnedDigicoins.toFixed(2)));
+          // Calculate boost multiplier asynchronously
+          const updateBoostAndCoins = async () => {
+            const totalMinutes = (dailyTimeOffMinutes + newTime / 60);
+            const boostResult = await shouldApplyBoostMultiplier(totalMinutes);
+            const currentBoost = boostResult.multiplier;
             
-            // Update boost multiplier if we crossed the threshold
-            if (currentBoost > boostMultiplier) {
-              setBoostMultiplier(currentBoost);
+            // Apply the boost multiplier
+            const newEarnedDigicoins = (newTime / 60) * BASE_COIN_RATE * currentBoost;
+            
+            if (Math.abs(newEarnedDigicoins - earnedDigicoins) >= 0.01) {
+              setEarnedDigicoins(Number(newEarnedDigicoins.toFixed(2)));
+              
+              // Update boost multiplier if it changed
+              if (currentBoost !== boostMultiplier) {
+                setBoostMultiplier(currentBoost);
+              }
             }
-          }
+          };
+          
+          updateBoostAndCoins();
           
           // Auto-end detox when duration is reached
           if (newTime >= selectedDuration) {
@@ -195,6 +199,30 @@ const DetoxScreen = () => {
     // Update stats with earned Digicoins and time
     if (timeElapsed > 0) {
       await updateDigiStats(earnedDigicoins, timeElapsed);
+      
+      // Send congratulatory notification for completing a detox session
+      if (timeElapsed >= 300) { // 5 minutes or more
+        const sessionMinutes = Math.floor(timeElapsed / 60);
+        
+        // Send immediate congratulatory notification
+        try {
+          await notificationService.sendImmediateEncouragement();
+        } catch (error) {
+          console.error('Failed to send congratulatory notification:', error);
+        }
+
+        // Check for achievements
+        try {
+          const newAchievements = await achievementService.checkSessionAchievements(sessionMinutes);
+          if (newAchievements.length > 0) {
+            // Show the first new achievement
+            setCurrentAchievement(newAchievements[0]);
+            setShowAchievementModal(true);
+          }
+        } catch (error) {
+          console.error('Failed to check achievements:', error);
+        }
+      }
     }
     
     setTimeElapsed(0);
@@ -484,6 +512,16 @@ const DetoxScreen = () => {
             </View>
           </View>
         </Modal>
+
+        {/* Achievement Modal */}
+        <AchievementModal
+          visible={showAchievementModal}
+          achievement={currentAchievement}
+          onClose={() => {
+            setShowAchievementModal(false);
+            setCurrentAchievement(null);
+          }}
+        />
       </LinearGradient>
     </View>
   );

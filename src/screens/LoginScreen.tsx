@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { registerUser, loginUser } from '../../firebase/auth';
 import { setUserData } from '../../firebase/firestore';
+import ErrorHandler from '../utils/errorHandler';
 
 interface LoginScreenProps {
   navigation: any;
@@ -48,40 +49,72 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
   };
 
   const handleAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+    // Validate email
+    const emailError = ErrorHandler.validateInput(email, {
+      required: true,
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    });
+    if (emailError) {
+      ErrorHandler.showErrorAlert(emailError, undefined, 'Invalid Email');
       return;
     }
 
-    if (!isLogin && (!firstName.trim() || !lastName.trim())) {
-      Alert.alert('Error', 'Please enter your first and last name');
+    // Validate password
+    const passwordError = ErrorHandler.validateInput(password, {
+      required: true,
+      minLength: 6
+    });
+    if (passwordError) {
+      ErrorHandler.showErrorAlert(passwordError, undefined, 'Invalid Password');
       return;
     }
 
-    if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
+    // Validate registration fields
+    if (!isLogin) {
+      const firstNameError = ErrorHandler.validateInput(firstName, {
+        required: true,
+        minLength: 2
+      });
+      if (firstNameError) {
+        ErrorHandler.showErrorAlert(firstNameError, undefined, 'Invalid First Name');
+        return;
+      }
 
-    if (!validatePassword(password)) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
+      const lastNameError = ErrorHandler.validateInput(lastName, {
+        required: true,
+        minLength: 2
+      });
+      if (lastNameError) {
+        ErrorHandler.showErrorAlert(lastNameError, undefined, 'Invalid Last Name');
+        return;
+      }
 
-    if (!isLogin && password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
+      if (password !== confirmPassword) {
+        ErrorHandler.showErrorAlert(
+          ErrorHandler.createError(
+            ErrorHandler.ERROR_CODES.INVALID_INPUT,
+            'Passwords do not match. Please make sure both passwords are identical.'
+          ),
+          undefined,
+          'Password Mismatch'
+        );
+        return;
+      }
     }
 
     setLoading(true);
 
-    try {
+    const authOperation = async () => {
       if (isLogin) {
         const result = await loginUser(email, password);
         if (result.success) {
           onAuthSuccess();
+          return result;
         } else {
-          Alert.alert('Login Failed', result.error || 'An error occurred during login');
+          // Create a Firebase-style error for proper parsing
+          const error = new Error(result.error || 'Login failed');
+          (error as any).code = 'auth/login-failed';
+          throw error;
         }
       } else {
         const result = await registerUser(email, password);
@@ -94,15 +127,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
             createdAt: new Date().toISOString(),
           });
           onAuthSuccess();
+          return result;
         } else {
-          Alert.alert('Registration Failed', result.error || 'An error occurred during registration');
+          // Create a Firebase-style error for proper parsing
+          const error = new Error(result.error || 'Registration failed');
+          (error as any).code = 'auth/registration-failed';
+          throw error;
         }
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    const handleRetry = () => {
+      handleAuth(); // Retry the authentication
+    };
+
+    const authResult = await ErrorHandler.handleAsync(
+      authOperation,
+      isLogin ? 'User Login' : 'User Registration',
+      true,
+      handleRetry
+    );
+
+    setLoading(false);
   };
 
   const toggleAuthMode = () => {
@@ -263,9 +309,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
               <Text style={styles.switchText}>
                 {isLogin ? "Don't have an account? " : "Already have an account? "}
               </Text>
-              <TouchableOpacity onPress={toggleAuthMode}>
+              <TouchableOpacity onPress={isLogin ? () => navigation.navigate('Register') : toggleAuthMode}>
                 <Text style={styles.switchLink}>
-                  {isLogin ? 'Sign Up' : 'Sign In'}
+                  {isLogin ? 'Create Account' : 'Sign In'}
                 </Text>
               </TouchableOpacity>
             </View>

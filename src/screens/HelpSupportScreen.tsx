@@ -5,12 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  HelpSupport: undefined;
-};
+import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 

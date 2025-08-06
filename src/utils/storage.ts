@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ErrorHandler from './errorHandler';
 
 const STORAGE_KEYS = {
   BALANCE: '@digitox_balance',
@@ -132,7 +133,7 @@ const resetWeeklyStats = async () => {
 };
 
 export const getDigiStats = async (): Promise<DigiStats> => {
-  try {
+  const operation = async (): Promise<DigiStats> => {
     // Check if we need to reset daily stats
     if (await shouldResetDaily()) {
       await resetDailyStats();
@@ -155,17 +156,32 @@ export const getDigiStats = async (): Promise<DigiStats> => {
       currentStreak: currentStreak ? parseInt(currentStreak) : 0,
       todayDetoxTime: todayDetoxTime ? parseInt(todayDetoxTime) : 0,
     };
-  } catch (error) {
-    console.error('Error getting DigiStats:', error);
-    return { 
-      balance: 0, 
-      totalEarned: 0, 
-      totalTimeSaved: 0, 
-      dailyTimeSaved: 0, 
-      currentStreak: 0,
-      todayDetoxTime: 0,
-    };
+  };
+
+  const result = await ErrorHandler.handleAsync(
+    operation,
+    'Get User Stats',
+    false // Don't show alert for stats loading
+  );
+
+  if (result.success && result.data) {
+    return result.data;
   }
+
+  // Return default stats on error
+  ErrorHandler.logError(
+    result.error || new Error('Failed to load stats'),
+    'getDigiStats'
+  );
+
+  return { 
+    balance: 0, 
+    totalEarned: 0, 
+    totalTimeSaved: 0, 
+    dailyTimeSaved: 0, 
+    currentStreak: 0,
+    todayDetoxTime: 0,
+  };
 };
 
 export const getWeeklyProgress = async (): Promise<WeeklyProgress> => {

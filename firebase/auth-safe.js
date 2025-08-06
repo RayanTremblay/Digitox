@@ -9,7 +9,7 @@ const initializeFirebaseSafely = async () => {
   }
 
   try {
-    const { auth: firebaseAuth } = await import('./firebaseConfig');
+    const { auth: firebaseAuth } = await import('./firebaseConfig.ts');
     auth = firebaseAuth;
     isFirebaseInitialized = true;
     return auth;

@@ -1,24 +1,37 @@
-// firebase/firebaseConfig.js - Fixed version
-// Import the functions you need from the SDKs you need
+// firebase/firebaseConfig.ts - Secure version with environment variables
 import { initializeApp, getApps } from "firebase/app";
 import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from 'react-native';
 
-// Your web app's Firebase configuration
-export const firebaseConfig = {
-  apiKey: "AIzaSyB_sm6Qx6yy3BwdD_7daw1aPSsFAAIK7XE",
-  authDomain: "digitox-fbf32.firebaseapp.com",
-  projectId: "digitox-fbf32",
-  storageBucket: "digitox-fbf32.firebasestorage.app",
-  messagingSenderId: "245053492044",
-  appId: "1:245053492044:web:4680cdc2ef197a3ea19de9",
-  measurementId: "G-CRQRGFCG1D"
+// Environment variable helper - NEVER include actual keys as fallbacks in production
+const getEnvVar = (key: string): string => {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`🚨 PRODUCTION ERROR: Required environment variable ${key} is not set. Please configure your environment variables.`);
+  }
+  return value;
 };
 
-// Debug logging
-console.log('🔧 Firebase Config Debug:');
-console.log('Platform.OS:', Platform.OS);
+// Firebase configuration from environment variables ONLY
+// These MUST be set in your production environment (Expo EAS, app stores, etc.)
+export const firebaseConfig = {
+  apiKey: getEnvVar('EXPO_PUBLIC_FIREBASE_API_KEY'),
+  authDomain: getEnvVar('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnvVar('EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnvVar('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnvVar('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnvVar('EXPO_PUBLIC_FIREBASE_APP_ID'),
+  measurementId: getEnvVar('EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID')
+};
+
+// Debug logging (only in development)
+if (__DEV__) {
+  console.log('🔧 Firebase Config Debug:');
+  console.log('📱 Platform:', Platform.OS);
+  console.log('🔑 Using environment variables for Firebase config');
+}
+
 console.log('Existing apps:', getApps().length);
 
 // Initialize Firebase

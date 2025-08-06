@@ -9,12 +9,7 @@ import { getDigiStats } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserData } from '../../firebase/firestore';
 import { generateInitials, generateInitialsFromDisplayName, generateInitialsFromEmail } from '../utils/userUtils';
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  Detox: undefined;
-};
+import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 

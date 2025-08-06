@@ -18,15 +18,15 @@ import {
   getDrawById,
   getUserDrawData,
   purchaseTickets,
-  addFreeTickets,
+  addFreeTicketsFromAd,
   getTimeRemaining,
   canWatchAdForTickets,
+  getAdCooldownRemaining,
   getRarityColor,
   getCategoryIcon,
   TICKET_COST,
   AD_REWARD_TICKETS,
 } from '../utils/drawManager';
-import adManager from '../utils/adManager';
 
 interface DrawCardProps {
   drawId: string;
@@ -43,6 +43,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
   const [ticketCount, setTicketCount] = useState('1');
   const [isLoading, setIsLoading] = useState(false);
   const [canWatchAd, setCanWatchAd] = useState(true);
+  const [adCooldownMinutes, setAdCooldownMinutes] = useState(0);
 
   // Load draw data
   const loadDrawData = async () => {
@@ -59,6 +60,9 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
       
       const adEligible = await canWatchAdForTickets(drawId);
       setCanWatchAd(adEligible);
+      
+      const cooldownRemaining = await getAdCooldownRemaining(drawId);
+      setAdCooldownMinutes(cooldownRemaining);
     } catch (error) {
       console.error('Error loading draw data:', error);
     }
@@ -84,50 +88,38 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
   }, [drawId]);
 
   const handleWatchAdForTickets = async () => {
-    if (!draw || isLoading || !canWatchAd) return;
+    if (!draw || isLoading) return;
 
     setIsLoading(true);
     
     try {
-      const adResult = await adManager.showRewardedAd();
+      const result = await addFreeTicketsFromAd(drawId);
       
-      if (adResult.success) {
-        const ticketsEarned = await addFreeTickets(drawId, true);
+      if (result.success && result.ticketsEarned > 0) {
+        // Update local state
+        setUserData(prev => ({
+          ...prev,
+          ticketsOwned: prev.ticketsOwned + result.ticketsEarned,
+        }));
         
-        if (ticketsEarned > 0) {
-          // Update local state
-          setUserData(prev => ({
-            ...prev,
-            ticketsOwned: prev.ticketsOwned + ticketsEarned,
-          }));
-          
-          setCanWatchAd(false);
-          
-          Alert.alert(
-            'Tickets Earned! 🎟️',
-            `You earned ${ticketsEarned} free tickets by watching the ad! You now have ${userData.ticketsOwned + ticketsEarned} tickets for ${draw.title}.`,
-            [{ text: 'Awesome!' }]
-          );
-          
-          // Preload next ad
-          adManager.preloadAd();
-        } else {
-          Alert.alert(
-            'Maximum Reached',
-            `You've reached the maximum number of tickets (${draw.maxTicketsPerUser}) for this draw.`,
-            [{ text: 'OK' }]
-          );
-        }
+        // Refresh canWatchAd status
+        loadDrawData();
+        
+        Alert.alert(
+          'Tickets Earned! 🎟️',
+          `Amazing! You earned ${result.ticketsEarned} free tickets by watching the ad! You now have ${userData.ticketsOwned + result.ticketsEarned} tickets for ${draw.title}.`,
+          [{ text: 'Awesome!' }]
+        );
       } else {
         Alert.alert(
-          'Ad Required',
-          'You need to watch the full ad to earn free tickets.',
+          'Cannot Get Tickets',
+          result.error || 'Failed to earn tickets. Please try again.',
           [{ text: 'OK' }]
         );
       }
     } catch (error) {
       console.error('Error watching ad for tickets:', error);
-      Alert.alert('Error', 'Failed to load ad. Please try again.');
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -380,7 +372,12 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
           >
             <Ionicons name="add-circle" size={16} color={colors.white} />
             <Text style={styles.adButtonText}>
-              {canWatchAd ? `+${AD_REWARD_TICKETS} Tickets` : 'Ad Cooldown'}
+              {canWatchAd 
+                ? `+${AD_REWARD_TICKETS} Tickets` 
+                : adCooldownMinutes > 0 
+                  ? `Wait ${adCooldownMinutes}min` 
+                  : 'Ad Cooldown'
+              }
             </Text>
           </TouchableOpacity>
         </View>

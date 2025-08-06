@@ -10,24 +10,28 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logoutUser } from '../../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
+import { RootStackParamList } from '../types/navigation';
+import notificationService, { NotificationSettings } from '../services/notificationService';
 
 // Storage key for daily goal
 const DAILY_GOAL_KEY = '@digitox_daily_goal';
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  Privacy: undefined;
-  HelpSupport: undefined;
-};
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { user } = useAuth();
+  const { user, syncUserData, backupData, restoreData } = useAuth();
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    enabled: true,
+    frequency: 'medium',
+    quietHoursStart: '22:00',
+    quietHoursEnd: '08:00',
+    motivationalStyle: 'encouraging'
+  });
   const [userStats, setUserStats] = useState({
     currentBalance: 0,
     totalEarned: 0,
@@ -57,6 +61,10 @@ const ProfileScreen = () => {
         setDailyGoal(parseInt(savedGoal, 10));
         setNewGoalValue(savedGoal);
       }
+
+      // Load notification settings
+      const currentNotificationSettings = notificationService.getSettings();
+      setNotificationSettings(currentNotificationSettings);
     };
     
     loadData();
@@ -112,6 +120,121 @@ const ProfileScreen = () => {
         },
       ]
     );
+  };
+
+  const handleSyncData = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await syncUserData();
+      if (result.success) {
+        Alert.alert('Success', 'Your data has been synchronized successfully!');
+        // Reload local data
+        const stats = await getDigiStats();
+        const updatedStreak = await updateStreak();
+        setUserStats({
+          currentBalance: stats.balance,
+          totalEarned: stats.totalEarned,
+          totalTimeSaved: stats.totalTimeSaved,
+          currentStreak: updatedStreak,
+          todayDetoxTime: stats.todayDetoxTime,
+        });
+      } else {
+        Alert.alert('Sync Failed', result.error || 'Failed to sync data');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleBackupData = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await backupData();
+      if (result.success) {
+        Alert.alert('Success', 'Your data has been backed up to the cloud!');
+      } else {
+        Alert.alert('Backup Failed', result.error || 'Failed to backup data');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRestoreData = async () => {
+    if (isSyncing) return;
+    
+    Alert.alert(
+      'Restore Data',
+      'This will overwrite your local data with data from the cloud. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSyncing(true);
+            try {
+              const result = await restoreData();
+              if (result.success) {
+                Alert.alert('Success', 'Your data has been restored from the cloud!');
+                // Reload local data
+                const stats = await getDigiStats();
+                const updatedStreak = await updateStreak();
+                setUserStats({
+                  currentBalance: stats.balance,
+                  totalEarned: stats.totalEarned,
+                  totalTimeSaved: stats.totalTimeSaved,
+                  currentStreak: updatedStreak,
+                  todayDetoxTime: stats.todayDetoxTime,
+                });
+              } else {
+                Alert.alert('Restore Failed', result.error || 'Failed to restore data');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'An unexpected error occurred');
+            } finally {
+              setIsSyncing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUpdateNotificationSettings = async (updates: Partial<NotificationSettings>) => {
+    try {
+      const newSettings = { ...notificationSettings, ...updates };
+      setNotificationSettings(newSettings);
+      await notificationService.updateSettings(updates);
+      
+      if (updates.enabled !== undefined) {
+        const message = updates.enabled 
+          ? 'Notifications enabled! You\'ll receive encouraging reminders.'
+          : 'Notifications disabled. You can re-enable them anytime.';
+        Alert.alert('Notifications Updated', message);
+      }
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      Alert.alert('Error', 'Failed to update notification settings');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      await notificationService.sendImmediateEncouragement();
+      Alert.alert('Test Sent!', 'Check your notifications for a motivational message.');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification');
+    }
   };
 
   // Calculate daily progress
@@ -221,8 +344,72 @@ const ProfileScreen = () => {
             </View>
           </View>
 
+          <Text style={styles.sectionTitle}>Data Management</Text>
+          <View style={styles.settingsContainer}>
+            <TouchableOpacity 
+              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
+              onPress={handleSyncData}
+              disabled={isSyncing}
+            >
+              <Text style={styles.settingText}>
+                {isSyncing ? 'Syncing...' : 'Sync Data'}
+              </Text>
+              <Ionicons name="sync" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
+              onPress={handleBackupData}
+              disabled={isSyncing}
+            >
+              <Text style={styles.settingText}>
+                {isSyncing ? 'Processing...' : 'Backup to Cloud'}
+              </Text>
+              <Ionicons name="cloud-upload" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
+              onPress={handleRestoreData}
+              disabled={isSyncing}
+            >
+              <Text style={styles.settingText}>
+                {isSyncing ? 'Processing...' : 'Restore from Cloud'}
+              </Text>
+              <Ionicons name="cloud-download" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.sectionTitle}>Notification Settings</Text>
+          <View style={styles.settingsContainer}>
+            <TouchableOpacity 
+              style={styles.settingButton}
+              onPress={() => setShowNotificationModal(true)}
+            >
+              <Text style={styles.settingText}>Detox Reminders</Text>
+              <View style={styles.settingRight}>
+                <Text style={styles.settingValue}>
+                  {notificationSettings.enabled ? 'On' : 'Off'}
+                </Text>
+                <Text style={styles.settingArrow}>→</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.settingButton}
+              onPress={handleTestNotification}
+            >
+              <Text style={styles.settingText}>Test Notification</Text>
+              <Ionicons name="notifications" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.sectionTitle}>Settings</Text>
           <View style={styles.settingsContainer}>
+            <TouchableOpacity 
+              style={styles.settingButton}
+              onPress={() => navigation.navigate('Achievements')}
+            >
+              <Text style={styles.settingText}>🏆 Achievements</Text>
+              <Text style={styles.settingArrow}>→</Text>
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.settingButton}
               onPress={() => navigation.navigate('Privacy')}
@@ -286,6 +473,111 @@ const ProfileScreen = () => {
                 onPress={handleUpdateGoal}
               >
                 <Text style={styles.buttonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notification Settings Modal */}
+      <Modal
+        visible={showNotificationModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNotificationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Notification Settings</Text>
+            
+            {/* Enable/Disable Notifications */}
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Enable Notifications</Text>
+              <TouchableOpacity 
+                style={[styles.toggle, notificationSettings.enabled && styles.toggleActive]}
+                onPress={() => handleUpdateNotificationSettings({ enabled: !notificationSettings.enabled })}
+              >
+                <View style={[styles.toggleSlider, notificationSettings.enabled && styles.toggleSliderActive]} />
+              </TouchableOpacity>
+            </View>
+
+            {notificationSettings.enabled && (
+              <>
+                {/* Frequency */}
+                <View style={styles.settingSection}>
+                  <Text style={styles.settingLabel}>Frequency</Text>
+                  <View style={styles.frequencyButtons}>
+                    {(['low', 'medium', 'high'] as const).map((freq) => (
+                      <TouchableOpacity 
+                        key={freq}
+                        style={[
+                          styles.frequencyButton,
+                          notificationSettings.frequency === freq && styles.frequencyButtonActive
+                        ]}
+                        onPress={() => handleUpdateNotificationSettings({ frequency: freq })}
+                      >
+                        <Text style={[
+                          styles.frequencyButtonText,
+                          notificationSettings.frequency === freq && styles.frequencyButtonTextActive
+                        ]}>
+                          {freq === 'low' ? '3/day' : freq === 'medium' ? '5/day' : '8/day'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Motivational Style */}
+                <View style={styles.settingSection}>
+                  <Text style={styles.settingLabel}>Message Style</Text>
+                  <View style={styles.styleButtons}>
+                    {(['gentle', 'encouraging', 'challenging'] as const).map((style) => (
+                      <TouchableOpacity 
+                        key={style}
+                        style={[
+                          styles.styleButton,
+                          notificationSettings.motivationalStyle === style && styles.styleButtonActive
+                        ]}
+                        onPress={() => handleUpdateNotificationSettings({ motivationalStyle: style })}
+                      >
+                        <Text style={[
+                          styles.styleButtonText,
+                          notificationSettings.motivationalStyle === style && styles.styleButtonTextActive
+                        ]}>
+                          {style.charAt(0).toUpperCase() + style.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Preview Message */}
+                <View style={styles.previewSection}>
+                  <Text style={styles.settingLabel}>Preview Message</Text>
+                  <Text style={styles.previewText}>
+                    {notificationService.getPreviewMessage()}
+                  </Text>
+                </View>
+
+                {/* Quiet Hours */}
+                <View style={styles.settingSection}>
+                  <Text style={styles.settingLabel}>Quiet Hours</Text>
+                  <Text style={styles.quietHoursText}>
+                    {notificationSettings.quietHoursStart} - {notificationSettings.quietHoursEnd}
+                  </Text>
+                  <Text style={styles.quietHoursDescription}>
+                    No notifications during these hours
+                  </Text>
+                </View>
+              </>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => setShowNotificationModal(false)}
+              >
+                <Text style={styles.buttonText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -548,6 +840,123 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     textAlign: 'center',
+  },
+  settingButtonDisabled: {
+    opacity: 0.5,
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  settingValue: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  // Notification Settings Modal Styles
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  settingSection: {
+    marginBottom: spacing.lg,
+  },
+  settingLabel: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  toggle: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.background,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleSlider: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.textSecondary,
+  },
+  toggleSliderActive: {
+    backgroundColor: colors.text,
+    alignSelf: 'flex-end',
+  },
+  frequencyButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  frequencyButton: {
+    flex: 1,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  frequencyButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  frequencyButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  frequencyButtonTextActive: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  styleButtons: {
+    gap: spacing.sm,
+  },
+  styleButton: {
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  styleButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  styleButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  styleButtonTextActive: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  previewSection: {
+    marginBottom: spacing.lg,
+  },
+  previewText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    lineHeight: 20,
+  },
+  quietHoursText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  quietHoursDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
 });
 

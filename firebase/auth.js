@@ -4,7 +4,7 @@ import {
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { auth } from './firebaseConfig';
+import { auth } from './firebaseConfig.ts';
 
 export const registerUser = async (email, password) => {
   try {

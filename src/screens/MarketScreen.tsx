@@ -4,11 +4,13 @@ import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import RewardCard, { Reward } from '../components/RewardCard';
 import RedeemConfirmationModal from '../components/RedeemConfirmationModal';
 import RedemptionModal from '../components/RedemptionModal';
 import RedeemedCodeModal from '../components/RedeemedCodeModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { 
   getDigiStats, 
@@ -27,16 +29,13 @@ import {
   getAvailableCodesCount,
   autoInitializeYourCodes
 } from '../utils/codeManager';
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-};
+import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const MarketScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [userBalance, setUserBalance] = useState(1000);
@@ -45,6 +44,8 @@ const MarketScreen = () => {
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
   const [showRedeemedCodeModal, setShowRedeemedCodeModal] = useState(false);
   const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const [redemptionModalProps, setRedemptionModalProps] = useState({
     scenario: 'success' as 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
     promoCode: '',
@@ -56,9 +57,16 @@ const MarketScreen = () => {
   // Load user balance and initialize promo codes
   useEffect(() => {
     const initializeApp = async () => {
-      await loadUserBalance();
-      await loadRedeemedRewards();
-      await autoInitializeYourCodes(); // Auto-initialize your promo codes
+      try {
+        setIsLoading(true);
+        await loadUserBalance();
+        await loadRedeemedRewards();
+        await autoInitializeYourCodes(); // Auto-initialize your promo codes
+      } catch (error) {
+        console.error('Error initializing MarketScreen:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     initializeApp();
   }, []);
@@ -282,7 +290,8 @@ const MarketScreen = () => {
 
   const handleConfirmRedeem = async (reward: Reward) => {
     try {
-      const userId = 'user123'; // Replace with actual user ID from authentication
+      setIsRedeeming(true);
+      const userId = user?.uid || 'anonymous'; // Use actual authenticated user ID
 
       // Check if user has enough balance
       if (userBalance < reward.digicoins) {
@@ -337,14 +346,29 @@ const MarketScreen = () => {
     } catch (error) {
       console.error('Error redeeming reward:', error);
       showRedemptionResult('error', undefined, selectedReward?.title);
+    } finally {
+      setIsRedeeming(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <LinearGradient
+        colors={['#1D2024', '#6E7A8A']}
+        style={styles.container}
+      >
+        <Header />
+        <LoadingSpinner text="Loading rewards..." />
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
       colors={['#1D2024', '#6E7A8A']}
       style={styles.container}
     >
+      {isRedeeming && <LoadingSpinner overlay text="Processing redemption..." />}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

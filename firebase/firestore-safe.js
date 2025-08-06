@@ -9,7 +9,7 @@ const initializeFirestoreSafely = async () => {
   }
 
   try {
-    const { db: firebaseDb } = await import('./firebaseConfig');
+    const { db: firebaseDb } = await import('./firebaseConfig.ts');
     db = firebaseDb;
     isFirebaseInitialized = true;
     return db;

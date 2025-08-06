@@ -13,7 +13,7 @@ const AuthTest = () => {
     
     try {
       // Test Firebase import
-      const firebaseModule = await import('./firebase/firebaseConfig');
+      const firebaseModule = await import('./firebase/firebaseConfig.ts');
       console.log('Firebase module:', firebaseModule);
       
       const { auth, db } = firebaseModule;
