@@ -76,8 +76,8 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
           await loadReferralStats();
           
           Alert.alert(
-            'Invite Sent! 🎉',
-            `Your referral link has been shared via ${option.name}. You'll earn ${REFERRAL_REWARD} Digicoins when someone clicks your link and downloads the app!`,
+            'Invite Sent!',
+            `Your referral link has been shared via ${option.name}. You'll earn ${REFERRAL_REWARD} Detoxcoins when someone clicks your link and downloads the app!`,
             [{ text: 'Awesome!' }]
           );
         }
@@ -87,8 +87,8 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
         if (success) {
           await loadReferralStats();
           Alert.alert(
-            'Invite Sent! 🎉',
-            `Your referral link has been shared. You'll earn ${REFERRAL_REWARD} Digicoins when someone clicks your link!`,
+            'Invite Sent!',
+            `Your referral link has been shared. You'll earn ${REFERRAL_REWARD} Detoxcoins when someone clicks your link!`,
             [{ text: 'Great!' }]
           );
         }
@@ -109,8 +109,8 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
         await loadReferralStats();
         onReferralComplete?.(); // Update parent component's balance
         Alert.alert(
-          'Test Successful! 🎉',
-          `Simulated someone clicking your link! You earned ${REFERRAL_REWARD} Digicoins.`,
+          'Test Successful!',
+          `Simulated someone clicking your link! You earned ${REFERRAL_REWARD} Detoxcoins.`,
           [{ text: 'Awesome!' }]
         );
       } else {
@@ -154,7 +154,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
                 <Text style={styles.rewardAmount}>{REFERRAL_REWARD}</Text>
               </View>
               <Text style={styles.rewardText}>
-                Digicoins for each friend you invite
+                Detoxcoins for each friend you invite
               </Text>
               <Text style={styles.rewardSubtext}>
                 Your friend gets a bonus too when they join!
@@ -169,7 +169,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
                 onPress={() => handleShare('copy')}
               >
                 <Ionicons name="link" size={20} color={colors.primary} style={styles.linkIcon} />
-                <Text style={styles.linkText}>digitox.app/invite?referrer={stats.userId}</Text>
+                <Text style={styles.linkText}>detoxly.app/invite?referrer={stats.userId}</Text>
                 <Ionicons name="copy" size={16} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.linkHint}>Tap to copy your personal invite link</Text>
@@ -189,7 +189,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statNumber}>{stats.totalEarned}</Text>
-                  <Text style={styles.statLabel}>Digicoins Earned</Text>
+                  <Text style={styles.statLabel}>Detoxcoins Earned</Text>
                 </View>
               </View>
             </View>
@@ -243,7 +243,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
                     <Text style={styles.stepNumberText}>3</Text>
                   </View>
                   <Text style={styles.stepText}>
-                    You automatically earn {REFERRAL_REWARD} Digicoins!
+                    You automatically earn {REFERRAL_REWARD} Detoxcoins!
                   </Text>
                 </View>
               </View>

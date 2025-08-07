@@ -20,7 +20,7 @@ const RedeemConfirmationModal = ({
 }: RedeemConfirmationModalProps) => {
   if (!reward) return null;
 
-  const canAfford = userBalance >= reward.digicoins;
+  const canAfford = userBalance >= reward.detoxcoins;
 
   return (
     <Modal
@@ -40,7 +40,7 @@ const RedeemConfirmationModal = ({
           
           <View style={styles.rewardInfo}>
             <Text style={styles.rewardName}>{reward.title}</Text>
-            <Text style={styles.rewardCost}>{reward.digicoins} Digicoins</Text>
+            <Text style={styles.rewardCost}>{reward.detoxcoins} Detoxcoins</Text>
           </View>
 
           <View style={styles.balanceInfo}>
@@ -49,13 +49,13 @@ const RedeemConfirmationModal = ({
               styles.balanceAmount,
               !canAfford && styles.insufficientBalance
             ]}>
-              {userBalance} Digicoins
+              {userBalance} Detoxcoins
             </Text>
           </View>
 
           {!canAfford && (
             <Text style={styles.errorMessage}>
-              Insufficient Digicoins balance
+              Insufficient Detoxcoins balance
             </Text>
           )}
 

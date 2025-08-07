@@ -28,14 +28,14 @@ const TestFirebase = () => {
           testResults.push(`7. Config: ${firebaseConfig ? 'OK' : 'MISSING'}`);
           
           if (auth && db && app) {
-            setFirebaseStatus('✅ Firebase loaded successfully!');
+            setFirebaseStatus('Firebase loaded successfully!');
           } else {
-            setFirebaseStatus('❌ Firebase services missing');
+            setFirebaseStatus('Firebase services missing');
           }
           
         } catch (error: any) {
-          testResults.push(`❌ Error: ${error.message}`);
-          setFirebaseStatus(`❌ Firebase error: ${error.message}`);
+                  testResults.push(`Error: ${error.message}`);
+        setFirebaseStatus(`Firebase error: ${error.message}`);
         }
         
         setDetails(testResults);

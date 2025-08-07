@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
-import { getDigiStats } from '../utils/storage';
+import { getDetoxStats } from '../utils/storage';
 
 interface StatsModalProps {
   visible: boolean;
@@ -44,7 +44,7 @@ const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passed
   }, [visible, passedStats]);
 
   const loadStats = async () => {
-    const currentStats = await getDigiStats();
+    const currentStats = await getDetoxStats();
     setStats({
       currentBalance: currentStats.balance,
       totalEarned: currentStats.totalEarned,
@@ -62,7 +62,7 @@ const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passed
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, styles.statsModalContent]}>
           <View style={styles.statsHeader}>
-            <Text style={styles.modalTitle}>Your Digicoin Stats</Text>
+            <Text style={styles.modalTitle}>Your Detoxcoin Stats</Text>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={onClose}

@@ -1,4 +1,4 @@
-package com.digitox.app
+package com.detoxly.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

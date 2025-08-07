@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, ScrollView, Modal, TouchableWithoutFeedback, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, ScrollView, Modal, TouchableWithoutFeedback, TextInput, AppState, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Circle, G } from 'react-native-svg';
 import Header from '../components/Header';
-import { getDigiStats, updateDigiStats, checkAndResetDailyStats } from '../utils/storage';
+import { getDetoxStats, updateDetoxStats, checkAndResetDailyStats } from '../utils/storage';
 import { shouldApplyBoostMultiplier } from '../utils/boostManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types/navigation';
@@ -29,7 +29,7 @@ const DURATION_OPTIONS = [
   { label: '1 hour', value: 60 * 60 },
   { label: '2 hours', value: 120 * 60 },
   { label: '4 hours', value: 240 * 60 },
-  { label: 'Custom duration ⏱️', value: 'custom' },
+      { label: 'Custom duration', value: 'custom' },
 ];
 
 const formatLongTime = (seconds: number) => {
@@ -50,7 +50,7 @@ const DetoxScreen = () => {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [progress] = useState(new Animated.Value(0));
-  const [earnedDigicoins, setEarnedDigicoins] = useState(0);
+  const [earnedDetoxcoins, setEarnedDetoxcoins] = useState(0);
   const [showDurationModal, setShowDurationModal] = useState(true);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showCustomDurationModal, setShowCustomDurationModal] = useState(false);
@@ -65,11 +65,14 @@ const DetoxScreen = () => {
   const [dailyTimeOffMinutes, setDailyTimeOffMinutes] = useState(0);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [currentAchievement, setCurrentAchievement] = useState<any>(null);
+  const [appStateChangeTime, setAppStateChangeTime] = useState<number | null>(null);
+  const [showSessionInterruptedModal, setShowSessionInterruptedModal] = useState(false);
+  const [interruptedSessionData, setInterruptedSessionData] = useState<{timeCompleted: string, coinsEarned: string} | null>(null);
 
   useEffect(() => {
     // Load daily stats to check for boost multiplier
     const loadStats = async () => {
-      const stats = await getDigiStats();
+      const stats = await getDetoxStats();
       const minutes = Math.floor(stats.dailyTimeSaved / 60);
       setDailyTimeOffMinutes(minutes);
       
@@ -95,10 +98,10 @@ const DetoxScreen = () => {
             const currentBoost = boostResult.multiplier;
             
             // Apply the boost multiplier
-            const newEarnedDigicoins = (newTime / 60) * BASE_COIN_RATE * currentBoost;
+            const newEarnedDetoxcoins = (newTime / 60) * BASE_COIN_RATE * currentBoost;
             
-            if (Math.abs(newEarnedDigicoins - earnedDigicoins) >= 0.01) {
-              setEarnedDigicoins(Number(newEarnedDigicoins.toFixed(2)));
+            if (Math.abs(newEarnedDetoxcoins - earnedDetoxcoins) >= 0.01) {
+              setEarnedDetoxcoins(Number(newEarnedDetoxcoins.toFixed(2)));
               
               // Update boost multiplier if it changed
               if (currentBoost !== boostMultiplier) {
@@ -119,7 +122,7 @@ const DetoxScreen = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isActive, earnedDigicoins, selectedDuration, dailyTimeOffMinutes, boostMultiplier]);
+  }, [isActive, earnedDetoxcoins, selectedDuration, dailyTimeOffMinutes, boostMultiplier]);
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -138,6 +141,27 @@ const DetoxScreen = () => {
     }
     return () => clearTimeout(screenTimeout);
   }, [isActive]);
+
+  // 🔒 APP STATE MONITORING - End detox session if user quits the app
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (isActive) {
+        if (nextAppState === 'background' || nextAppState === 'inactive') {
+          // User is leaving the app during detox session
+          setAppStateChangeTime(Date.now());
+          
+          // Force end the session immediately to prevent cheating
+          setIsActive(false);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [isActive, timeElapsed, earnedDetoxcoins]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -191,14 +215,37 @@ const DetoxScreen = () => {
     
     setShowInstructionsModal(false);
     setIsActive(true);
+    setAppStateChangeTime(null); // Reset app state tracking when starting session
+  };
+
+  // Add pause/resume functionality - toggle between pause and resume
+  const handlePauseDetox = () => {
+    setIsActive(!isActive);
+  };
+
+  // Handle session interrupted modal actions
+  const handleSaveProgressAndExit = () => {
+    setShowSessionInterruptedModal(false);
+    handleEndDetox();
+  };
+
+  const handleStartNewSession = () => {
+    setShowSessionInterruptedModal(false);
+    // Save progress first, then restart
+    updateDetoxStats(Number(interruptedSessionData?.coinsEarned || 0), timeElapsed).then(() => {
+      // Reset for new session
+      setTimeElapsed(0);
+      setEarnedDetoxcoins(0);
+      setShowDurationModal(true);
+    });
   };
 
   const handleEndDetox = async () => {
     setIsActive(false);
     
-    // Update stats with earned Digicoins and time
+    // Update stats with earned Detoxcoins and time
     if (timeElapsed > 0) {
-      await updateDigiStats(earnedDigicoins, timeElapsed);
+      await updateDetoxStats(earnedDetoxcoins, timeElapsed);
       
       // Send congratulatory notification for completing a detox session
       if (timeElapsed >= 300) { // 5 minutes or more
@@ -226,7 +273,8 @@ const DetoxScreen = () => {
     }
     
     setTimeElapsed(0);
-    setEarnedDigicoins(0);
+    setEarnedDetoxcoins(0);
+    setAppStateChangeTime(null); // Reset app state tracking
     navigation.navigate('MainTabs');
   };
 
@@ -262,18 +310,48 @@ const DetoxScreen = () => {
       intervalId = setInterval(() => {
         checkAndResetDailyStats().then(async () => {
           // If a reset happened, we'll get new stats
-          const stats = await getDigiStats();
+          const stats = await getDetoxStats();
           if (stats.dailyTimeSaved === 0 && timeElapsed > 0) {
             // If dailyTimeSaved is reset to 0 but we have time elapsed,
             // we need to update the stats with our current session
-            await updateDigiStats(earnedDigicoins, timeElapsed);
+            await updateDetoxStats(earnedDetoxcoins, timeElapsed);
           }
         });
       }, 60000); // Check every minute
     }
     
     return () => clearInterval(intervalId);
-  }, [isActive, timeElapsed, earnedDigicoins]);
+  }, [isActive, timeElapsed, earnedDetoxcoins]);
+
+  // 🔒 APP STATE MONITORING - End detox session if user quits the app
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (isActive) {
+        if (nextAppState === 'background' || nextAppState === 'inactive') {
+          // User is leaving the app during detox session
+          setAppStateChangeTime(Date.now());
+          
+          // Force end the session immediately to prevent cheating
+          setIsActive(false);
+          
+          // Show custom modal when they return to the app
+          setTimeout(() => {
+            setInterruptedSessionData({
+              timeCompleted: formatTime(timeElapsed),
+              coinsEarned: earnedDetoxcoins.toFixed(2)
+            });
+            setShowSessionInterruptedModal(true);
+          }, 500); // Small delay to ensure app is back in foreground
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [isActive, timeElapsed, earnedDetoxcoins]);
 
   return (
     <View style={styles.container}>
@@ -289,7 +367,7 @@ const DetoxScreen = () => {
           <View style={styles.content}>
             <Header showProfile={false} />
             <View style={styles.titleContainer}>
-              <Text style={styles.title}>Digicoin</Text>
+              <Text style={styles.title}>Detoxcoin</Text>
             </View>
 
             <View style={styles.mainContent}>
@@ -342,7 +420,7 @@ const DetoxScreen = () => {
                     style={styles.smallCoinIcon}
                     resizeMode="contain"
                   />
-                  <Text style={styles.rewardText}>+{earnedDigicoins.toFixed(2)}</Text>
+                  <Text style={styles.rewardText}>+{earnedDetoxcoins.toFixed(2)}</Text>
                   {boostMultiplier > 1 && (
                     <View style={styles.boostBadge}>
                       <Text style={styles.boostBadgeText}>{boostMultiplier}x</Text>
@@ -360,15 +438,22 @@ const DetoxScreen = () => {
                   <Text style={styles.instructionItem}>• Keep the app open and your phone unlocked</Text>
                   <Text style={styles.instructionItem}>• After 1 minute, the screen will dim to save battery</Text>
                   <Text style={styles.instructionItem}>• Due to iOS limitations, we cannot track when the app is closed or the phone is locked</Text>
-                  <Text style={styles.instructionItem}>• Your session will end if you close the app or lock your phone</Text>
+                  <Text style={styles.instructionItem}>• 🔒 Your session will automatically end if you leave the app</Text>
                   <Text style={styles.instructionItem}>• You'll receive rewards for the time spent in detox until the session ends</Text>
                 </View>
               </View>
 
-              {isActive && (
-                <TouchableOpacity style={styles.endButton} onPress={handleEndDetox}>
-                  <Text style={styles.endButtonText}>End Detox</Text>
-                </TouchableOpacity>
+              {(isActive || timeElapsed > 0) && (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity style={styles.pauseButton} onPress={handlePauseDetox}>
+                    <Text style={styles.pauseButtonText}>
+                      {isActive ? '⏸️ Pause' : '▶️ Resume'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.endButton} onPress={handleEndDetox}>
+                    <Text style={styles.endButtonText}>🔚 End Detox</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           </View>
@@ -514,7 +599,7 @@ const DetoxScreen = () => {
         </Modal>
 
         {/* Achievement Modal */}
-        <AchievementModal
+                <AchievementModal 
           visible={showAchievementModal}
           achievement={currentAchievement}
           onClose={() => {
@@ -522,6 +607,67 @@ const DetoxScreen = () => {
             setCurrentAchievement(null);
           }}
         />
+
+        {/* Session Interrupted Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showSessionInterruptedModal}
+          onRequestClose={() => {}} // Prevent closing with back button
+        >
+          <View style={styles.interruptedModalOverlay}>
+            <View style={styles.interruptedModalContent}>
+              {/* Warning Icon */}
+              <View style={styles.warningIconContainer}>
+                <Text style={styles.warningIcon}>🚨</Text>
+              </View>
+
+              {/* Title */}
+              <Text style={styles.interruptedModalTitle}>Session Interrupted</Text>
+              
+              {/* Description */}
+              <Text style={styles.interruptedModalDescription}>
+                Your detox session was automatically ended because you left the app during your digital detox.
+              </Text>
+
+              {/* Stats Container */}
+              <View style={styles.interruptedStatsContainer}>
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>⏱️</Text>
+                  <Text style={styles.statLabel}>Time completed:</Text>
+                  <Text style={styles.statValue}>{interruptedSessionData?.timeCompleted}</Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statIcon}>💰</Text>
+                  <Text style={styles.statLabel}>Detoxcoins earned:</Text>
+                  <Text style={styles.statValue}>{interruptedSessionData?.coinsEarned}</Text>
+                </View>
+              </View>
+
+              {/* Reminder Text */}
+              <Text style={styles.interruptedReminderText}>
+                🔒 For an effective digital detox, please stay within the app during your session.
+              </Text>
+
+              {/* Action Buttons */}
+              <View style={styles.interruptedButtonContainer}>
+                <TouchableOpacity 
+                  style={styles.saveProgressButton}
+                  onPress={handleSaveProgressAndExit}
+                >
+                  <Text style={styles.saveProgressButtonText}>💾 Save Progress & Exit</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.newSessionButton}
+                  onPress={handleStartNewSession}
+                >
+                  <Text style={styles.newSessionButtonText}>🔄 Start New Session</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -622,12 +768,32 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     lineHeight: 24,
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  pauseButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  pauseButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
   endButton: {
     backgroundColor: '#FF4444',
     paddingVertical: spacing.md,
     borderRadius: borderRadius.round,
     alignItems: 'center',
-    marginTop: spacing.xl,
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   endButtonText: {
     ...typography.body,
@@ -801,6 +967,114 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  // Session Interrupted Modal Styles
+  interruptedModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  interruptedModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  warningIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 107, 53, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  warningIcon: {
+    fontSize: 40,
+  },
+  interruptedModalTitle: {
+    ...typography.h2,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    fontWeight: '700',
+  },
+  interruptedModalDescription: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 22,
+  },
+  interruptedStatsContainer: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    width: '100%',
+    marginBottom: spacing.lg,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  statIcon: {
+    fontSize: 20,
+    width: 30,
+  },
+  statLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  statValue: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  interruptedReminderText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    fontStyle: 'italic',
+  },
+  interruptedButtonContainer: {
+    width: '100%',
+    gap: spacing.md,
+  },
+  saveProgressButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+  },
+  saveProgressButtonText: {
+    ...typography.body,
+    color: colors.background,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  newSessionButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+  },
+  newSessionButtonText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

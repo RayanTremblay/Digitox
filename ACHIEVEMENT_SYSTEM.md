@@ -17,7 +17,7 @@ A comprehensive achievement/badge system has been successfully implemented to bo
 - **25 unique achievements** across 6 categories
 - **4 rarity levels**: Common, Rare, Epic, Legendary
 - **Progress tracking**: Real-time progress for locked achievements
-- **Reward system**: Digicoins awarded for unlocking achievements
+- **Reward system**: Detoxcoins awarded for unlocking achievements
 - **Smart checking**: Automatic achievement verification
 
 ### 🎨 **User Interface**
@@ -36,7 +36,7 @@ A comprehensive achievement/badge system has been successfully implemented to bo
 
 ### Common Achievements
 - 🚶 **First Steps**: Complete 15-minute session (+10 coins)
-- 💎 **First Coins**: Earn first 10 Digicoins (+5 coins)
+- 💎 **First Coins**: Earn first 10 Detoxcoins (+5 coins)
 - 📅 **Consistency Starter**: 3-day streak (+15 coins)
 
 ### Legendary Achievements

@@ -2,26 +2,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ErrorHandler from './errorHandler';
 
 const STORAGE_KEYS = {
-  BALANCE: '@digitox_balance',
-  TOTAL_EARNED: '@digitox_total_earned',
-  TOTAL_TIME: '@digitox_total_time',
-  DAILY_TIME: '@digitox_daily_time',
-  LAST_RESET_DATE: '@digitox_last_reset_date',
-  WEEKLY_PROGRESS: '@digitox_weekly_progress',
-  WEEK_START_DATE: '@digitox_week_start_date',
-  CURRENT_STREAK: '@digitox_current_streak',
-  LAST_ACTIVITY_DATE: '@digitox_last_activity_date',
-  DAILY_GOAL: '@digitox_daily_goal',
-  WEEKLY_GOAL: '@digitox_weekly_goal',
-  GOALS_COMPLETED: '@digitox_goals_completed',
-  DETOX_SESSIONS: '@digitox_detox_sessions',
-  TODAY_DETOX_TIME: '@digitox_today_detox_time',
+  BALANCE: '@detoxly_balance',
+  TOTAL_EARNED: '@detoxly_total_earned',
+  TOTAL_TIME: '@detoxly_total_time',
+  DAILY_TIME: '@detoxly_daily_time',
+  LAST_RESET_DATE: '@detoxly_last_reset_date',
+  WEEKLY_PROGRESS: '@detoxly_weekly_progress',
+  WEEK_START_DATE: '@detoxly_week_start_date',
+  CURRENT_STREAK: '@detoxly_current_streak',
+  LAST_ACTIVITY_DATE: '@detoxly_last_activity_date',
+  DAILY_GOAL: '@detoxly_daily_goal',
+  WEEKLY_GOAL: '@detoxly_weekly_goal',
+  GOALS_COMPLETED: '@detoxly_goals_completed',
+  DETOX_SESSIONS: '@detoxly_detox_sessions',
+  TODAY_DETOX_TIME: '@detoxly_today_detox_time',
 };
 
 // Storage keys
-const REDEEMED_REWARDS_KEY = '@digitox_redeemed_rewards';
+const REDEEMED_REWARDS_KEY = '@detoxly_redeemed_rewards';
 
-export interface DigiStats {
+export interface DetoxStats {
   balance: number;
   totalEarned: number;
   totalTimeSaved: number;
@@ -60,8 +60,8 @@ export interface RedeemedReward {
   usesLeft: number;
 }
 
-export const DIGICOINS_BALANCE_KEY = 'digicoins_balance';
-export const TOTAL_DIGICOINS_EARNED_KEY = 'total_digicoins_earned';
+export const DETOXCOINS_BALANCE_KEY = 'detoxcoins_balance';
+export const TOTAL_DETOXCOINS_EARNED_KEY = 'total_detoxcoins_earned';
 
 export const PROMO_CODES_KEY = 'promo_codes';
 
@@ -132,8 +132,8 @@ const resetWeeklyStats = async () => {
   ]);
 };
 
-export const getDigiStats = async (): Promise<DigiStats> => {
-  const operation = async (): Promise<DigiStats> => {
+export const getDetoxStats = async (): Promise<DetoxStats> => {
+  const operation = async (): Promise<DetoxStats> => {
     // Check if we need to reset daily stats
     if (await shouldResetDaily()) {
       await resetDailyStats();
@@ -171,7 +171,7 @@ export const getDigiStats = async (): Promise<DigiStats> => {
   // Return default stats on error
   ErrorHandler.logError(
     result.error || new Error('Failed to load stats'),
-    'getDigiStats'
+    'getDetoxStats'
   );
 
   return { 
@@ -229,15 +229,15 @@ export const updateWeeklyProgress = async (dayOfWeek: number, timeSpent: number)
   }
 };
 
-export const updateDigiStats = async (earnedAmount: number, timeSpent: number) => {
+export const updateDetoxStats = async (earnedAmount: number, timeSpent: number) => {
   try {
     // Check if we need to reset daily stats
     if (await shouldResetDaily()) {
       await resetDailyStats();
     }
 
-    const currentStats = await getDigiStats();
-    const newStats: DigiStats = {
+    const currentStats = await getDetoxStats();
+    const newStats: DetoxStats = {
       balance: currentStats.balance + earnedAmount,
       totalEarned: currentStats.totalEarned + earnedAmount,
       totalTimeSaved: currentStats.totalTimeSaved + timeSpent,
@@ -259,7 +259,7 @@ export const updateDigiStats = async (earnedAmount: number, timeSpent: number) =
 
     return newStats;
   } catch (error) {
-    console.error('Error updating DigiStats:', error);
+    console.error('Error updating DetoxStats:', error);
     return null;
   }
 };
@@ -436,7 +436,7 @@ export const updateGoals = async (dailyGoal: number, weeklyGoal: number): Promis
 export const checkAndUpdateGoals = async (timeSpent: number): Promise<Goals> => {
   try {
     const goals = await getGoals();
-    const stats = await getDigiStats();
+    const stats = await getDetoxStats();
     
     // Convert timeSpent from seconds to hours
     const timeSpentHours = timeSpent / 3600;
@@ -460,7 +460,7 @@ export const checkAndUpdateGoals = async (timeSpent: number): Promise<Goals> => 
   }
 };
 
-export const addDetoxSession = async (session: DetoxSession): Promise<DigiStats> => {
+export const addDetoxSession = async (session: DetoxSession): Promise<DetoxStats> => {
   try {
     // Get current sessions
     const sessionsStr = await AsyncStorage.getItem(STORAGE_KEYS.DETOX_SESSIONS);
@@ -479,14 +479,14 @@ export const addDetoxSession = async (session: DetoxSession): Promise<DigiStats>
     await AsyncStorage.setItem(STORAGE_KEYS.TODAY_DETOX_TIME, newTodayDetoxTime.toString());
     
     // Get updated stats
-    const stats = await getDigiStats();
+    const stats = await getDetoxStats();
     return {
       ...stats,
       todayDetoxTime: newTodayDetoxTime,
     };
   } catch (error) {
     console.error('Error adding detox session:', error);
-    return await getDigiStats();
+    return await getDetoxStats();
   }
 };
 
@@ -529,9 +529,9 @@ export const updateRedeemedRewardUses = async (rewardId: string, usesLeft: numbe
   }
 };
 
-// Check if user has enough Digicoins
-export const hasEnoughDigicoins = async (requiredAmount: number): Promise<boolean> => {
-  const stats = await getDigiStats();
+// Check if user has enough Detoxcoins
+export const hasEnoughDetoxcoins = async (requiredAmount: number): Promise<boolean> => {
+  const stats = await getDetoxStats();
   return stats.balance >= requiredAmount;
 };
 
@@ -540,43 +540,43 @@ const roundUpToTwoDecimals = (num: number): number => {
   return Math.ceil(num * 100) / 100;
 };
 
-export const getDigicoinsBalance = async (): Promise<number> => {
+export const getDetoxcoinsBalance = async (): Promise<number> => {
   try {
-    const balance = await AsyncStorage.getItem(DIGICOINS_BALANCE_KEY);
+    const balance = await AsyncStorage.getItem(DETOXCOINS_BALANCE_KEY);
     if (!balance) {
       // Set initial balance to 1000 if no balance exists
-      await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, '1000');
+      await AsyncStorage.setItem(DETOXCOINS_BALANCE_KEY, '1000');
       return 1000;
     }
     return roundUpToTwoDecimals(parseFloat(balance));
   } catch (error) {
-    console.error('Error getting Digicoins balance:', error);
+    console.error('Error getting Detoxcoins balance:', error);
     return 1000; // Return 1000 as default in case of error
   }
 };
 
 // Function to reset balance to 1000 (for testing)
-export const resetDigicoinsBalance = async (): Promise<void> => {
+export const resetDetoxcoinsBalance = async (): Promise<void> => {
   try {
-    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, '1000');
+    await AsyncStorage.setItem(DETOXCOINS_BALANCE_KEY, '1000');
   } catch (error) {
-    console.error('Error resetting Digicoins balance:', error);
+    console.error('Error resetting Detoxcoins balance:', error);
   }
 };
 
-export const getTotalDigicoinsEarned = async (): Promise<number> => {
+export const getTotalDetoxcoinsEarned = async (): Promise<number> => {
   try {
-    const total = await AsyncStorage.getItem(TOTAL_DIGICOINS_EARNED_KEY);
+    const total = await AsyncStorage.getItem(TOTAL_DETOXCOINS_EARNED_KEY);
     return total ? roundUpToTwoDecimals(parseFloat(total)) : 0;
   } catch (error) {
-    console.error('Error getting total Digicoins earned:', error);
+    console.error('Error getting total Detoxcoins earned:', error);
     return 0;
   }
 };
 
-export const deductDigicoins = async (amount: number): Promise<boolean> => {
+export const deductDetoxcoins = async (amount: number): Promise<boolean> => {
   try {
-    const currentBalance = await getDigicoinsBalance();
+    const currentBalance = await getDetoxcoinsBalance();
     const newBalance = roundUpToTwoDecimals(currentBalance - amount);
     
     if (newBalance < 0) {
@@ -584,34 +584,34 @@ export const deductDigicoins = async (amount: number): Promise<boolean> => {
     }
 
     // Update current balance
-    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, newBalance.toString());
+    await AsyncStorage.setItem(DETOXCOINS_BALANCE_KEY, newBalance.toString());
     
     // Update total earned
-    const totalEarned = await getTotalDigicoinsEarned();
-    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
+    const totalEarned = await getTotalDetoxcoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DETOXCOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
     
     return true;
   } catch (error) {
-    console.error('Error deducting Digicoins:', error);
+    console.error('Error deducting Detoxcoins:', error);
     return false;
   }
 };
 
-export const addDigicoins = async (amount: number): Promise<boolean> => {
+export const addDetoxcoins = async (amount: number): Promise<boolean> => {
   try {
-    const currentBalance = await getDigicoinsBalance();
+    const currentBalance = await getDetoxcoinsBalance();
     const newBalance = roundUpToTwoDecimals(currentBalance + amount);
     
     // Update current balance
-    await AsyncStorage.setItem(DIGICOINS_BALANCE_KEY, newBalance.toString());
+    await AsyncStorage.setItem(DETOXCOINS_BALANCE_KEY, newBalance.toString());
     
     // Update total earned
-    const totalEarned = await getTotalDigicoinsEarned();
-    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
+    const totalEarned = await getTotalDetoxcoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DETOXCOINS_EARNED_KEY, roundUpToTwoDecimals(totalEarned + amount).toString());
     
     return true;
   } catch (error) {
-    console.error('Error adding Digicoins:', error);
+    console.error('Error adding Detoxcoins:', error);
     return false;
   }
 };
@@ -734,11 +734,11 @@ export const incrementRedemptionsCount = async (): Promise<void> => {
 };
 
 // Update stats when redeeming an offer
-export const updateStatsOnRedemption = async (digicoinsAmount: number): Promise<void> => {
+export const updateStatsOnRedemption = async (detoxcoinsAmount: number): Promise<void> => {
   try {
     // Update total earned
-    const totalEarned = await getTotalDigicoinsEarned();
-    await AsyncStorage.setItem(TOTAL_DIGICOINS_EARNED_KEY, (totalEarned + digicoinsAmount).toString());
+    const totalEarned = await getTotalDetoxcoinsEarned();
+    await AsyncStorage.setItem(TOTAL_DETOXCOINS_EARNED_KEY, (totalEarned + detoxcoinsAmount).toString());
     
     // Increment redemptions count
     await incrementRedemptionsCount();

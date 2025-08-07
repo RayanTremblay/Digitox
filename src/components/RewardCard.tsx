@@ -7,7 +7,7 @@ export interface Reward {
   title: string;
   description: string;
   subtext: string;
-  digicoins: number;
+  detoxcoins: number;
   discount: string;
   category: string;
   expiresAt: string;
@@ -90,7 +90,7 @@ const RewardCard = ({
           resizeMode="contain"
         />
         <View style={styles.rewardInfo}>
-          <Text style={styles.rewardValue}>{reward.digicoins} Digicoins</Text>
+          <Text style={styles.rewardValue}>{reward.detoxcoins} Detoxcoins</Text>
           <Text style={styles.rewardDiscount}>{reward.discount}</Text>
         </View>
       </View>
@@ -115,7 +115,7 @@ const RewardCard = ({
               onPressOut={handlePressOut}
               activeOpacity={0.8}
             >
-              <Text style={styles.redeemedButtonText}>✅ Already Redeemed</Text>
+              <Text style={styles.redeemedButtonText}>Already Redeemed</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 

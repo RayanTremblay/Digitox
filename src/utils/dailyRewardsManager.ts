@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addDigicoins } from './storage';
+import { addDetoxcoins } from './storage';
 import adManager from './adManager';
 
 const DAILY_REWARDS_KEY = 'dailyRewardsData';
@@ -155,8 +155,8 @@ export const claimDailyReward = async (): Promise<{ success: boolean; reward?: n
     // Generate random reward
     const rewardAmount = generateRandomReward();
     
-    // Add Digicoins to user's balance
-    await addDigicoins(rewardAmount);
+    // Add Detoxcoins to user's balance
+    await addDetoxcoins(rewardAmount);
     
     // Update daily rewards data
     const data = await getDailyRewardsData();

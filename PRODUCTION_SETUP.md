@@ -28,6 +28,23 @@ EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ### For Manual Builds
 Set environment variables in your build system before building.
 
+### Required Environment Variables
+```bash
+# Firebase Configuration
+EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSyB_sm6Qx6yy3BwdD_7daw1aPSsFAAIK7XE
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=detoxly-fbf32.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=detoxly-fbf32
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=detoxly-fbf32.firebasestorage.app
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=245053492044
+EXPO_PUBLIC_FIREBASE_APP_ID=1:245053492044:web:4680cdc2ef197a3ea19de9
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-CRQRGFCG1D
+
+# Google Mobile Ads (set in android/app/src/main/AndroidManifest.xml)
+# For production, use your real Ad Mob App ID
+```
+
+**Note**: The current Firebase config uses fallback values for development. For production, set these as proper environment variables.
+
 ## Production Checklist
 
 ### ✅ Security

@@ -32,22 +32,22 @@ interface OnboardingSlide {
 const slides: OnboardingSlide[] = [
   {
     id: 1,
-    title: 'Welcome to Digitox',
+    title: 'Welcome to Detoxly',
     description: 'Take control of your digital wellness and earn rewards for spending time away from your phone.',
     icon: 'phone-portrait',
     color: '#6C63FF',
   },
   {
     id: 2,
-    title: 'Earn Digicoins',
-    description: 'Complete detox sessions and daily challenges to earn Digicoins that you can spend in our marketplace.',
+    title: 'Earn Detoxcoins',
+    description: 'Complete detox sessions and daily challenges to earn Detoxcoins that you can spend in our marketplace.',
     icon: 'logo-bitcoin',
     color: '#4CAF50',
   },
   {
     id: 3,
     title: 'Redeem Rewards',
-    description: 'Exchange your Digicoins for real rewards like Amazon gift cards, gadgets, and wellness products.',
+    description: 'Exchange your Detoxcoins for real rewards like Amazon gift cards, gadgets, and wellness products.',
     icon: 'gift',
     color: '#FF6B6B',
   },

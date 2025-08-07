@@ -79,21 +79,21 @@ const AchievementPreview: React.FC<AchievementPreviewProps> = ({ onPress }) => {
           <View style={styles.achievementInfo}>
             {recentAchievement ? (
               <View style={styles.achievementItem}>
-                <Text style={styles.achievementLabel}>🏆 Latest:</Text>
+                <Text style={styles.achievementLabel}>Latest:</Text>
                 <Text style={styles.achievementText} numberOfLines={1}>
                   {recentAchievement.title}
                 </Text>
               </View>
             ) : nextAchievement ? (
               <View style={styles.achievementItem}>
-                <Text style={styles.achievementLabel}>🎯 Next:</Text>
+                <Text style={styles.achievementLabel}>Next:</Text>
                 <Text style={styles.achievementText} numberOfLines={1}>
                   {nextAchievement.title} ({nextAchievement.progress}%)
                 </Text>
               </View>
             ) : (
               <View style={styles.achievementItem}>
-                <Text style={styles.achievementLabel}>✨</Text>
+                <Text style={styles.achievementLabel}>No achievements yet</Text>
                 <Text style={styles.achievementText}>
                   Start your journey to unlock achievements!
                 </Text>

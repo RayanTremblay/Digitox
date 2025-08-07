@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { deductDigicoins, addDigicoins } from './storage';
+import { deductDetoxcoins, addDetoxcoins } from './storage';
 import adManager from './adManager';
 
 const DRAW_DATA_KEY = 'drawData';
 const USER_DRAW_DATA_KEY = 'userDrawData';
-export const TICKET_COST = 1; // 1 Digicoin per ticket
+export const TICKET_COST = 1; // 1 Detoxcoin per ticket
 export const AD_REWARD_TICKETS = 5; // 5 tickets per ad
 const AD_COOLDOWN_MINUTES = 5; // 5 minutes between ads
 
@@ -398,8 +398,8 @@ export const purchaseTickets = async (drawId: string, ticketCount: number): Prom
       throw new Error(`Maximum ${draw.maxTicketsPerUser} tickets allowed per user for this draw`);
     }
     
-    // Deduct Digicoins
-    const success = await deductDigicoins(totalCost);
+    // Deduct Detoxcoins
+    const success = await deductDetoxcoins(totalCost);
     if (!success) {
       return false;
     }
@@ -433,12 +433,12 @@ export const addFreeTicketsFromAd = async (drawId: string): Promise<{ success: b
     }
 
     // Show rewarded ad
-    console.log('🎯 DrawManager: Attempting to show rewarded ad for tickets...');
+    console.log('DrawManager: Attempting to show rewarded ad for tickets...');
     const adResult = await adManager.showRewardedAd();
-    console.log('🎯 DrawManager: Ad result:', adResult);
+    console.log('DrawManager: Ad result:', adResult);
     
     if (!adResult.success) {
-      console.log('❌ DrawManager: Ad failed or was skipped, no tickets awarded');
+      console.log('DrawManager: Ad failed or was skipped, no tickets awarded');
       return {
         success: false,
         ticketsEarned: 0,
@@ -446,7 +446,7 @@ export const addFreeTicketsFromAd = async (drawId: string): Promise<{ success: b
       };
     }
     
-    console.log('✅ DrawManager: Ad was successfully watched, awarding tickets');
+    console.log('DrawManager: Ad was successfully watched, awarding tickets');
 
     // Ad was watched successfully, add tickets
     const draw = await getDrawById(drawId);

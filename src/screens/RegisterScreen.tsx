@@ -185,7 +185,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
         >
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join Digitox and start your digital wellness journey</Text>
+            <Text style={styles.subtitle}>Join Detoxly and start your digital wellness journey</Text>
           </View>
 
           <View style={styles.form}>

@@ -35,16 +35,16 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
 
   const getRarityEmoji = (rarity: Achievement['rarity']) => {
     switch (rarity) {
-      case 'common':
-        return '⭐';
-      case 'rare':
-        return '🌟';
+          case 'common': 
+      return '';
+    case 'rare': 
+      return '';
       case 'epic':
-        return '💫';
+        return '';
       case 'legendary':
-        return '✨';
+        return '';
       default:
-        return '⭐';
+        return '';
     }
   };
 
@@ -68,7 +68,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.achievementHeader}>
-                <Text style={styles.achievementTitle}>🏆 Achievement Unlocked!</Text>
+                <Text style={styles.achievementTitle}>Achievement Unlocked!</Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -112,7 +112,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
                   <View style={styles.rewardBadge}>
                     <Ionicons name="diamond" size={20} color="#FFD700" />
                     <Text style={styles.rewardText}>
-                      +{achievement.reward.digicoins} Digicoins
+                      +{achievement.reward.detoxcoins} Detoxcoins
                     </Text>
                   </View>
                   <Text style={styles.rewardTitle}>

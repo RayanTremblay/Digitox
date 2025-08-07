@@ -55,7 +55,7 @@ export const shareViaSystem = async (userId: string, userName?: string): Promise
     
     const result = await Share.share({
       message,
-      title: 'Join me on Digitox!',
+      title: 'Join me on Detoxly!',
     });
 
     if (result.action === Share.sharedAction) {
@@ -112,7 +112,7 @@ const copyToClipboard = async (message: string, userId: string): Promise<boolean
     await recordInviteSent('copy');
     
     Alert.alert(
-      'Copied! 📋',
+              'Copied!',
       'Referral link copied to clipboard. Share it anywhere you like!',
       [{ text: 'OK' }]
     );
@@ -224,7 +224,7 @@ const shareViaSystemFallback = async (message: string): Promise<boolean> => {
   try {
     const result = await Share.share({
       message,
-      title: 'Join me on Digitox!',
+      title: 'Join me on Detoxly!',
     });
 
     if (result.action === Share.sharedAction) {

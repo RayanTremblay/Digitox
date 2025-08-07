@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDigiStats } from '../utils/storage';
+import { getDetoxStats } from '../utils/storage';
 import notificationService from './notificationService';
 
-const ACHIEVEMENTS_KEY = '@digitox_achievements';
+const ACHIEVEMENTS_KEY = '@detoxly_achievements';
 
 export interface Achievement {
   id: string;
@@ -17,7 +17,7 @@ export interface Achievement {
   };
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   reward?: {
-    digicoins: number;
+    detoxcoins: number;
     title: string;
   };
   unlocked: boolean;
@@ -44,7 +44,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'time',
     criteria: { type: 'singleSession', target: 15 },
     rarity: 'common',
-    reward: { digicoins: 10, title: 'Welcome bonus!' }
+    reward: { detoxcoins: 10, title: 'Welcome bonus!' }
   },
   {
     id: 'focused_hour',
@@ -54,7 +54,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'time',
     criteria: { type: 'singleSession', target: 60 },
     rarity: 'common',
-    reward: { digicoins: 25, title: 'Deep focus achieved!' }
+    reward: { detoxcoins: 25, title: 'Deep focus achieved!' }
   },
   {
     id: 'digital_monk',
@@ -64,7 +64,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'time',
     criteria: { type: 'singleSession', target: 240 },
     rarity: 'epic',
-    reward: { digicoins: 100, title: 'Incredible self-control!' }
+    reward: { detoxcoins: 100, title: 'Incredible self-control!' }
   },
   {
     id: 'time_traveler',
@@ -74,7 +74,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'time',
     criteria: { type: 'totalTime', target: 600, unit: 'minutes' },
     rarity: 'rare',
-    reward: { digicoins: 50, title: 'Time master!' }
+    reward: { detoxcoins: 50, title: 'Time master!' }
   },
   {
     id: 'century_club',
@@ -84,7 +84,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'time',
     criteria: { type: 'totalTime', target: 6000, unit: 'minutes' },
     rarity: 'legendary',
-    reward: { digicoins: 500, title: 'Digital wellness master!' }
+    reward: { detoxcoins: 500, title: 'Digital wellness master!' }
   },
 
   // Streak-based achievements
@@ -96,7 +96,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'streak',
     criteria: { type: 'dailyStreak', target: 3 },
     rarity: 'common',
-    reward: { digicoins: 15, title: 'Building habits!' }
+    reward: { detoxcoins: 15, title: 'Building habits!' }
   },
   {
     id: 'week_warrior',
@@ -106,7 +106,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'streak',
     criteria: { type: 'dailyStreak', target: 7 },
     rarity: 'rare',
-    reward: { digicoins: 50, title: 'One week strong!' }
+    reward: { detoxcoins: 50, title: 'One week strong!' }
   },
   {
     id: 'month_master',
@@ -116,7 +116,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'streak',
     criteria: { type: 'dailyStreak', target: 30 },
     rarity: 'epic',
-    reward: { digicoins: 200, title: 'Unstoppable dedication!' }
+    reward: { detoxcoins: 200, title: 'Unstoppable dedication!' }
   },
   {
     id: 'streak_legend',
@@ -126,49 +126,49 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'streak',
     criteria: { type: 'dailyStreak', target: 100 },
     rarity: 'legendary',
-    reward: { digicoins: 1000, title: 'Legendary commitment!' }
+    reward: { detoxcoins: 1000, title: 'Legendary commitment!' }
   },
 
   // Balance & earnings achievements
   {
     id: 'first_coins',
     title: 'First Coins',
-    description: 'Earn your first 10 Digicoins',
+    description: 'Earn your first 10 Detoxcoins',
     icon: 'diamond',
     category: 'balance',
     criteria: { type: 'totalEarned', target: 10 },
     rarity: 'common',
-    reward: { digicoins: 5, title: 'Your journey begins!' }
+    reward: { detoxcoins: 5, title: 'Your journey begins!' }
   },
   {
     id: 'coin_collector',
     title: 'Coin Collector',
-    description: 'Earn 100 Digicoins total',
+    description: 'Earn 100 Detoxcoins total',
     icon: 'cash',
     category: 'balance',
     criteria: { type: 'totalEarned', target: 100 },
     rarity: 'rare',
-    reward: { digicoins: 25, title: 'Nice collection!' }
+    reward: { detoxcoins: 25, title: 'Nice collection!' }
   },
   {
     id: 'digital_millionaire',
     title: 'Digital Millionaire',
-    description: 'Earn 1000 Digicoins total',
+    description: 'Earn 1000 Detoxcoins total',
     icon: 'sparkles',
     category: 'balance',
     criteria: { type: 'totalEarned', target: 1000 },
     rarity: 'legendary',
-    reward: { digicoins: 100, title: 'Incredible dedication!' }
+    reward: { detoxcoins: 100, title: 'Incredible dedication!' }
   },
   {
     id: 'wealthy_detoxer',
     title: 'Wealthy Detoxer',
-    description: 'Have 500 Digicoins in your balance',
+    description: 'Have 500 Detoxcoins in your balance',
     icon: 'wallet',
     category: 'balance',
     criteria: { type: 'balance', target: 500 },
     rarity: 'epic',
-    reward: { digicoins: 50, title: 'Financial discipline!' }
+    reward: { detoxcoins: 50, title: 'Financial discipline!' }
   },
 
   // Session-based achievements
@@ -180,7 +180,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'sessions',
     criteria: { type: 'sessionCount', target: 5 },
     rarity: 'common',
-    reward: { digicoins: 20, title: 'Getting into the habit!' }
+    reward: { detoxcoins: 20, title: 'Getting into the habit!' }
   },
   {
     id: 'session_veteran',
@@ -190,7 +190,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'sessions',
     criteria: { type: 'sessionCount', target: 50 },
     rarity: 'rare',
-    reward: { digicoins: 75, title: 'Experienced practitioner!' }
+    reward: { detoxcoins: 75, title: 'Experienced practitioner!' }
   },
   {
     id: 'session_master',
@@ -200,7 +200,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'sessions',
     criteria: { type: 'sessionCount', target: 200 },
     rarity: 'epic',
-    reward: { digicoins: 200, title: 'Master of detox!' }
+    reward: { detoxcoins: 200, title: 'Master of detox!' }
   },
 
   // Milestone achievements
@@ -212,7 +212,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'milestones',
     criteria: { type: 'special', target: 1 },
     rarity: 'rare',
-    reward: { digicoins: 30, title: 'Morning motivation!' }
+    reward: { detoxcoins: 30, title: 'Morning motivation!' }
   },
   {
     id: 'night_owl',
@@ -222,7 +222,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'milestones',
     criteria: { type: 'special', target: 1 },
     rarity: 'rare',
-    reward: { digicoins: 30, title: 'Evening focus!' }
+    reward: { detoxcoins: 30, title: 'Evening focus!' }
   },
   {
     id: 'weekend_warrior',
@@ -232,7 +232,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'milestones',
     criteria: { type: 'special', target: 1 },
     rarity: 'epic',
-    reward: { digicoins: 40, title: 'Weekend dedication!' }
+    reward: { detoxcoins: 40, title: 'Weekend dedication!' }
   },
 
   // Special achievements
@@ -244,7 +244,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'special',
     criteria: { type: 'special', target: 1 },
     rarity: 'epic',
-    reward: { digicoins: 100, title: 'Flawless consistency!' }
+    reward: { detoxcoins: 100, title: 'Flawless consistency!' }
   },
   {
     id: 'marathon_detoxer',
@@ -254,7 +254,7 @@ const ACHIEVEMENT_DEFINITIONS: Omit<Achievement, 'unlocked' | 'unlockedAt' | 'pr
     category: 'special',
     criteria: { type: 'singleSession', target: 480 },
     rarity: 'legendary',
-    reward: { digicoins: 300, title: 'Extraordinary endurance!' }
+    reward: { detoxcoins: 300, title: 'Extraordinary endurance!' }
   }
 ];
 
@@ -277,9 +277,9 @@ class AchievementService {
     try {
       await this.loadAchievements();
       await this.loadSessionCount();
-      console.log('🏆 Achievement system initialized');
+      console.log('Achievement system initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize achievement system:', error);
+      console.error('Failed to initialize achievement system:', error);
     }
   }
 
@@ -334,7 +334,7 @@ class AchievementService {
    */
   private async loadSessionCount(): Promise<void> {
     try {
-      const count = await AsyncStorage.getItem('@digitox_session_count');
+      const count = await AsyncStorage.getItem('@detoxly_session_count');
       this.sessionCount = count ? parseInt(count, 10) : 0;
     } catch (error) {
       console.error('Error loading session count:', error);
@@ -348,7 +348,7 @@ class AchievementService {
   private async incrementSessionCount(): Promise<void> {
     try {
       this.sessionCount += 1;
-      await AsyncStorage.setItem('@digitox_session_count', this.sessionCount.toString());
+      await AsyncStorage.setItem('@detoxly_session_count', this.sessionCount.toString());
     } catch (error) {
       console.error('Error incrementing session count:', error);
     }
@@ -359,7 +359,7 @@ class AchievementService {
    */
   async checkAchievements(): Promise<Achievement[]> {
     try {
-      const stats = await getDigiStats();
+      const stats = await getDetoxStats();
       const newlyUnlocked: Achievement[] = [];
 
       for (const achievement of this.achievements) {
@@ -387,7 +387,7 @@ class AchievementService {
 
       if (newlyUnlocked.length > 0) {
         await this.saveAchievements();
-        console.log(`🏆 ${newlyUnlocked.length} new achievements unlocked!`);
+        console.log(`${newlyUnlocked.length} new achievements unlocked!`);
       }
 
       return newlyUnlocked;
@@ -516,10 +516,10 @@ class AchievementService {
 
     try {
       // Add coins to balance (implement this in your storage utils)
-      const { addDigicoins } = await import('../utils/storage');
-      await addDigicoins(achievement.reward.digicoins);
+      const { addDetoxcoins } = await import('../utils/storage');
+      await addDetoxcoins(achievement.reward.detoxcoins);
       
-      console.log(`💰 Awarded ${achievement.reward.digicoins} Digicoins for "${achievement.title}"`);
+      console.log(`Awarded ${achievement.reward.detoxcoins} Detoxcoins for "${achievement.title}"`);
     } catch (error) {
       console.error('Error awarding achievement reward:', error);
     }
@@ -531,10 +531,10 @@ class AchievementService {
   private async sendAchievementNotification(achievement: Achievement): Promise<void> {
     try {
       const rarity = achievement.rarity.charAt(0).toUpperCase() + achievement.rarity.slice(1);
-      const rewardText = achievement.reward ? ` (+${achievement.reward.digicoins} Digicoins)` : '';
+      const rewardText = achievement.reward ? ` (+${achievement.reward.detoxcoins} Detoxcoins)` : '';
       
       // This would use your notification service
-      console.log(`🏆 Achievement Unlocked: ${achievement.title}${rewardText}`);
+      console.log(`Achievement Unlocked: ${achievement.title}${rewardText}`);
       
       // You can integrate with your notification service here
       // await notificationService.sendImmediateEncouragement();
@@ -626,7 +626,7 @@ class AchievementService {
       await this.sendAchievementNotification(achievement);
       await this.saveAchievements();
 
-      console.log(`🏆 Special achievement unlocked: ${achievement.title}`);
+      console.log(`Special achievement unlocked: ${achievement.title}`);
       return true;
     } catch (error) {
       console.error('Error unlocking special achievement:', error);

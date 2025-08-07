@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import StatsModal from '../components/StatsModal';
-import { getDigiStats, updateStreak } from '../utils/storage';
+import { getDetoxStats, updateStreak } from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logoutUser } from '../../firebase/auth';
@@ -14,7 +14,7 @@ import { RootStackParamList } from '../types/navigation';
 import notificationService, { NotificationSettings } from '../services/notificationService';
 
 // Storage key for daily goal
-const DAILY_GOAL_KEY = '@digitox_daily_goal';
+const DAILY_GOAL_KEY = '@detoxly_daily_goal';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -45,7 +45,7 @@ const ProfileScreen = () => {
   // Load real data from storage
   useEffect(() => {
     const loadData = async () => {
-      const stats = await getDigiStats();
+      const stats = await getDetoxStats();
       const updatedStreak = await updateStreak();
       const savedGoal = await AsyncStorage.getItem(DAILY_GOAL_KEY);
       
@@ -131,7 +131,7 @@ const ProfileScreen = () => {
       if (result.success) {
         Alert.alert('Success', 'Your data has been synchronized successfully!');
         // Reload local data
-        const stats = await getDigiStats();
+        const stats = await getDetoxStats();
         const updatedStreak = await updateStreak();
         setUserStats({
           currentBalance: stats.balance,
@@ -186,7 +186,7 @@ const ProfileScreen = () => {
               if (result.success) {
                 Alert.alert('Success', 'Your data has been restored from the cloud!');
                 // Reload local data
-                const stats = await getDigiStats();
+                const stats = await getDetoxStats();
                 const updatedStreak = await updateStreak();
                 setUserStats({
                   currentBalance: stats.balance,
@@ -303,7 +303,7 @@ const ProfileScreen = () => {
                 resizeMode="contain"
               />
               <Text style={styles.statValue}>{Math.floor(userStats.totalEarned)}</Text>
-              <Text style={styles.statLabel}>Total Digicoins</Text>
+              <Text style={styles.statLabel}>Total Detoxcoins</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="flame-outline" size={24} color={colors.primary} />
@@ -407,7 +407,7 @@ const ProfileScreen = () => {
               style={styles.settingButton}
               onPress={() => navigation.navigate('Achievements')}
             >
-              <Text style={styles.settingText}>🏆 Achievements</Text>
+                                  <Text style={styles.settingText}>Achievements</Text>
               <Text style={styles.settingArrow}>→</Text>
             </TouchableOpacity>
             <TouchableOpacity 

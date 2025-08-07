@@ -7,7 +7,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import CircularProgress from '../components/CircularProgress';
 import ProgressBar from '../components/ProgressBar';
-import { getDigiStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, resetAllStatsToZero } from '../utils/storage';
+import { getDetoxStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, resetAllStatsToZero } from '../utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LoginScreen from './LoginScreen';
@@ -22,7 +22,7 @@ import { RootStackParamList } from '../types/navigation';
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 // Storage key for daily goal
-const DAILY_GOAL_KEY = '@digitox_daily_goal';
+const DAILY_GOAL_KEY = '@detoxly_daily_goal';
 
 // Constants for boost feature
 const BOOST_THRESHOLD_MINUTES = 180; // 3 hours
@@ -103,8 +103,8 @@ const HomeScreen = () => {
     await checkAndResetDailyStats();
     
     // Load daily stats
-    const stats = await getDigiStats();
-    console.log('Stats from getDigiStats:', stats); // Debug log
+    const stats = await getDetoxStats();
+    console.log('Stats from getDetoxStats:', stats); // Debug log
     
     // Convert seconds to minutes for display
     const minutes = Math.floor(stats.dailyTimeSaved / 60);
@@ -161,8 +161,8 @@ const HomeScreen = () => {
         await loadDailyStats(); // Update balance display
         
         Alert.alert(
-          'Daily Reward Claimed! 🎉',
-          `Congratulations! You earned ${result.reward} Digicoins!`,
+          'Daily Reward Claimed!',
+          `Congratulations! You earned ${result.reward} Detoxcoins!`,
           [{ text: 'Awesome!' }]
         );
       } else {
@@ -192,7 +192,7 @@ const HomeScreen = () => {
         await loadDailyStats(); // Update boost multiplier display
         
         Alert.alert(
-          '2x Boost Activated! 🚀',
+          '2x Boost Activated!',
           'Amazing! You now have 2x boost for the next 2 hours!',
           [{ text: 'Awesome!' }]
         );
@@ -280,7 +280,7 @@ const HomeScreen = () => {
         <View style={styles.content}>
           <Header />
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Digitox</Text>
+            <Text style={styles.title}>Detoxly</Text>
           </View>
 
           <View style={styles.detoxCard}>

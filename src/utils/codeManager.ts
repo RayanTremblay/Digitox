@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Storage keys for the code management system
-const AVAILABLE_CODES_KEY = '@digitox_available_codes';
-const ASSIGNED_CODES_KEY = '@digitox_assigned_codes';
-const USER_CODES_KEY = '@digitox_user_codes';
+const AVAILABLE_CODES_KEY = '@detoxly_available_codes';
+const ASSIGNED_CODES_KEY = '@detoxly_assigned_codes';
+const USER_CODES_KEY = '@detoxly_user_codes';
 
 // Interface for the code database entry
 export interface PromoCodeEntry {

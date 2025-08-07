@@ -103,7 +103,7 @@ const RedeemedCodeModal: React.FC<RedeemedCodeModalProps> = ({ visible, reward, 
                 </Text>
                 {promoCode.isUsed && (
                   <Text style={[styles.detailText, styles.usedText]}>
-                    ✅ Code has been used
+                    Code has been used
                   </Text>
                 )}
               </View>

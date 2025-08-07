@@ -13,6 +13,10 @@ import {
   getAssignedCodes,
   autoInitializeYourCodes
 } from '../utils/codeManager';
+import {
+  getGiftCardWins,
+  updateGiftCardWinStatus
+} from '../utils/scratchCardManager';
 
 const AdminCodeScreen = () => {
   const [newCodes, setNewCodes] = useState('');
@@ -24,6 +28,8 @@ const AdminCodeScreen = () => {
   const [availableCodes, setAvailableCodes] = useState<string[]>([]);
   const [assignedCodes, setAssignedCodes] = useState<any[]>([]);
   const [showCodes, setShowCodes] = useState(false);
+  const [giftCardWins, setGiftCardWins] = useState<any[]>([]);
+  const [showGiftCards, setShowGiftCards] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -39,6 +45,10 @@ const AdminCodeScreen = () => {
       
       const assignedCodesData = await getAssignedCodes();
       setAssignedCodes(assignedCodesData);
+
+      // Load gift card wins
+      const giftCardWinsData = await getGiftCardWins();
+      setGiftCardWins(giftCardWinsData);
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -130,6 +140,31 @@ const AdminCodeScreen = () => {
       ]
     );
   };
+
+  const handleMarkGiftCardSent = async (winId: string) => {
+    Alert.alert(
+      'Mark as Sent',
+      'Mark this gift card as sent to the user?',
+      [
+        { text: 'Cancel' },
+        {
+          text: 'Mark Sent',
+          onPress: async () => {
+            const success = await updateGiftCardWinStatus(winId, 'sent', 'Manually sent by admin');
+            if (success) {
+              Alert.alert('Success', 'Gift card marked as sent!');
+              loadStats();
+            } else {
+              Alert.alert('Error', 'Failed to update status.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const pendingGiftCards = giftCardWins.filter(win => win.status === 'pending');
+  const sentGiftCards = giftCardWins.filter(win => win.status === 'sent');
 
   return (
     <LinearGradient
@@ -273,6 +308,70 @@ const AdminCodeScreen = () => {
                       <Text style={styles.codeUser}>User: {codeData.userId}</Text>
                       <Text style={styles.codeStatus}>
                         {codeData.isUsed ? 'Used' : 'Unused'}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          )}
+
+          {/* 🎁 GIFT CARD WINS SECTION */}
+          <TouchableOpacity 
+            style={[styles.toggleButton, { backgroundColor: pendingGiftCards.length > 0 ? '#FF6B35' : colors.surface }]}
+            onPress={() => setShowGiftCards(!showGiftCards)}
+          >
+            <Text style={[styles.toggleButtonText, { color: pendingGiftCards.length > 0 ? colors.background : colors.primary }]}>
+              🎁 {showGiftCards ? 'Hide Gift Card Wins' : `Gift Card Wins (${pendingGiftCards.length} pending)`}
+            </Text>
+            <Ionicons 
+              name={showGiftCards ? 'chevron-up' : 'chevron-down'} 
+              size={20} 
+              color={pendingGiftCards.length > 0 ? colors.background : colors.primary}
+            />
+          </TouchableOpacity>
+
+          {showGiftCards && (
+            <View style={styles.codesSection}>
+              <View style={styles.codesList}>
+                <Text style={styles.codesTitle}>🚨 Pending Gift Cards ({pendingGiftCards.length})</Text>
+                <ScrollView style={styles.codesScrollView} nestedScrollEnabled>
+                  {pendingGiftCards.length === 0 ? (
+                    <Text style={styles.noDataText}>No pending gift cards! 🎉</Text>
+                  ) : (
+                    pendingGiftCards.map((win, index) => (
+                      <View key={index} style={[styles.assignedCodeItem, { backgroundColor: '#FF6B35', opacity: 0.9 }]}>
+                        <Text style={[styles.codeItem, { color: colors.background, fontWeight: 'bold' }]}>
+                          💳 ${win.amount} Amazon Gift Card
+                        </Text>
+                        <Text style={[styles.codeUser, { color: colors.background }]}>
+                          User: {win.userId || 'Unknown'} | Email: {win.email || 'Unknown'}
+                        </Text>
+                        <Text style={[styles.codeUser, { color: colors.background }]}>
+                          Won: {new Date(win.timestamp).toLocaleString()}
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.markSentButton}
+                          onPress={() => handleMarkGiftCardSent(win.id)}
+                        >
+                          <Text style={styles.markSentButtonText}>Mark as Sent ✅</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+
+              <View style={styles.codesList}>
+                <Text style={styles.codesTitle}>✅ Sent Gift Cards ({sentGiftCards.length})</Text>
+                <ScrollView style={styles.codesScrollView} nestedScrollEnabled>
+                  {sentGiftCards.map((win, index) => (
+                    <View key={index} style={styles.assignedCodeItem}>
+                      <Text style={styles.codeItem}>💳 ${win.amount} Amazon Gift Card</Text>
+                      <Text style={styles.codeUser}>User: {win.userId || 'Unknown'}</Text>
+                      <Text style={styles.codeStatus}>✅ Sent</Text>
+                      <Text style={styles.codeUser}>
+                        Won: {new Date(win.timestamp).toLocaleDateString()}
                       </Text>
                     </View>
                   ))}
@@ -451,6 +550,25 @@ const styles = StyleSheet.create({
   },
   autoInitButton: {
     backgroundColor: colors.success,
+  },
+  markSentButton: {
+    backgroundColor: colors.background,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.xs,
+    alignItems: 'center',
+  },
+  markSentButtonText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  noDataText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: spacing.lg,
   },
 });
 

@@ -106,7 +106,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
         loadDrawData();
         
         Alert.alert(
-          'Tickets Earned! 🎟️',
+          'Tickets Earned!',
           `Amazing! You earned ${result.ticketsEarned} free tickets by watching the ad! You now have ${userData.ticketsOwned + result.ticketsEarned} tickets for ${draw.title}.`,
           [{ text: 'Awesome!' }]
         );
@@ -139,7 +139,7 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
     if (userBalance < totalCost) {
       Alert.alert(
         'Insufficient Balance',
-        `You need ${totalCost} Digicoins to purchase ${tickets} ticket(s). You currently have ${userBalance.toFixed(2)} Digicoins.`,
+        `You need ${totalCost} Detoxcoins to purchase ${tickets} ticket(s). You currently have ${userBalance.toFixed(2)} Detoxcoins.`,
         [
           { text: 'Cancel' },
           { 
@@ -185,8 +185,8 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
         setTicketCount('1');
         
         Alert.alert(
-          'Tickets Purchased! 🎟️',
-          `You successfully purchased ${tickets} ticket(s) for ${totalCost} Digicoins! You now have ${userData.ticketsOwned + tickets} tickets for ${draw.title}.`,
+          'Tickets Purchased!',
+          `You successfully purchased ${tickets} ticket(s) for ${totalCost} Detoxcoins! You now have ${userData.ticketsOwned + tickets} tickets for ${draw.title}.`,
           [{ text: 'Great!' }]
         );
       } else {
@@ -257,13 +257,13 @@ const DrawCard: React.FC<DrawCardProps> = ({ drawId, userBalance, onBalanceUpdat
               placeholderTextColor={colors.textSecondary}
             />
             <Text style={styles.costText}>
-              Cost: {parseInt(ticketCount, 10) * TICKET_COST || 0} Digicoins
+              Cost: {parseInt(ticketCount, 10) * TICKET_COST || 0} Detoxcoins
             </Text>
           </View>
 
           <View style={styles.userStats}>
             <Text style={styles.statText}>Your tickets: {userData.ticketsOwned}</Text>
-            <Text style={styles.statText}>Total spent: {userData.totalSpent} Digicoins</Text>
+            <Text style={styles.statText}>Total spent: {userData.totalSpent} Detoxcoins</Text>
             {draw.maxTicketsPerUser && (
               <Text style={styles.statText}>
                 Max allowed: {draw.maxTicketsPerUser} tickets

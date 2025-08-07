@@ -49,30 +49,30 @@ export default function App() {
       // Initialize Google Mobile Ads SDK
       try {
         const adapterStatuses = await mobileAds().initialize();
-        console.log('✅ Google Mobile Ads SDK initialized successfully');
+        console.log('Google Mobile Ads SDK initialized successfully');
         console.log('Adapter statuses:', adapterStatuses);
       } catch (error) {
-        console.error('❌ Google Mobile Ads SDK initialization failed:', error);
+        console.error('Google Mobile Ads SDK initialization failed:', error);
       }
 
       // Initialize notification service
       try {
         const notificationInitialized = await notificationService.initialize();
         if (notificationInitialized) {
-          console.log('✅ Notification service initialized successfully');
+          console.log('Notification service initialized successfully');
         } else {
-          console.log('⚠️ Notification service initialization skipped or failed');
+          console.log('Notification service initialization skipped or failed');
         }
       } catch (error) {
-        console.error('❌ Notification service initialization failed:', error);
+        console.error('Notification service initialization failed:', error);
       }
 
       // Initialize achievement service
       try {
         await achievementService.initialize();
-        console.log('✅ Achievement service initialized successfully');
+        console.log('Achievement service initialized successfully');
       } catch (error) {
-        console.error('❌ Achievement service initialization failed:', error);
+        console.error('Achievement service initialization failed:', error);
       }
     };
 

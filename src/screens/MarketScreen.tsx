@@ -1,34 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
-import RewardCard, { Reward } from '../components/RewardCard';
-import RedeemConfirmationModal from '../components/RedeemConfirmationModal';
-import RedemptionModal from '../components/RedemptionModal';
-import RedeemedCodeModal from '../components/RedeemedCodeModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ScratchCard from '../components/ScratchCard';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  getDigiStats, 
-  hasEnoughDigicoins, 
-  deductDigicoins, 
-  addRedeemedReward,
-  getDigicoinsBalance,
-  updateStatsOnRedemption,
-  getRedeemedRewards,
-  RedeemedReward
-} from '../utils/storage';
-import {
-  assignPromoCodeToUser,
-  markUserPromoCodeAsUsed,
-  getUserPromoCodeForOffer,
-  getAvailableCodesCount,
-  autoInitializeYourCodes
-} from '../utils/codeManager';
+import { getDetoxcoinsBalance } from '../utils/storage';
+import { purchaseScratchCard, processReward } from '../utils/scratchCardManager';
 import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -36,450 +18,141 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 const MarketScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [userBalance, setUserBalance] = useState(1000);
-  const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showRedemptionModal, setShowRedemptionModal] = useState(false);
-  const [showRedeemedCodeModal, setShowRedeemedCodeModal] = useState(false);
-  const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
+  const [userBalance, setUserBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRedeeming, setIsRedeeming] = useState(false);
-  const [redemptionModalProps, setRedemptionModalProps] = useState({
-    scenario: 'success' as 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
-    promoCode: '',
-    rewardTitle: '',
-    userBalance: 0,
-    requiredAmount: 0,
-  });
+  const [scratchCardKey, setScratchCardKey] = useState(0);
 
-  // Load user balance and initialize promo codes
+  const SCRATCH_CARD_COST = 5;
+
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        setIsLoading(true);
-        await loadUserBalance();
-        await loadRedeemedRewards();
-        await autoInitializeYourCodes(); // Auto-initialize your promo codes
-      } catch (error) {
-        console.error('Error initializing MarketScreen:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    initializeApp();
+    loadUserBalance();
   }, []);
 
   const loadUserBalance = async () => {
     try {
-      const balance = await getDigicoinsBalance();
+      setIsLoading(true);
+      const balance = await getDetoxcoinsBalance();
       setUserBalance(balance);
     } catch (error) {
       console.error('Error loading user balance:', error);
-      setUserBalance(1000); // Set to 1000 as fallback
-    }
-  };
-
-  const loadRedeemedRewards = async () => {
-    try {
-      const redeemed = await getRedeemedRewards();
-      setRedeemedRewards(redeemed);
-    } catch (error) {
-      console.error('Error loading redeemed rewards:', error);
-      setRedeemedRewards([]);
-    }
-  };
-
-  const categories = [
-    'All',
-    'Health & Wellness',
-    'Digital Wellness',
-    'Gadgets',
-    'Entertainment',
-    'Education'
-  ];
-
-  const rewards: Reward[] = [
-    // Gadgets
-    {
-      id: '1',
-      title: 'Garmin Venu 3',
-      description: 'Get 30% off on the latest Garmin smartwatch',
-      subtext: 'Track your fitness journey with style',
-      digicoins: 1,
-      discount: '30% OFF',
-      category: 'Gadgets',
-      image: 'https://example.com/garmin.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '2',
-      title: 'Apple Watch Series 9',
-      description: 'Save 25% on the newest Apple Watch',
-      subtext: 'Stay connected and healthy',
-      digicoins: 1,
-      discount: '25% OFF',
-      category: 'Gadgets',
-      image: 'https://example.com/apple-watch.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '3',
-      title: 'Samsung Galaxy Watch 6',
-      description: 'Get 20% off on Samsung\'s latest smartwatch',
-      subtext: 'Advanced health monitoring',
-      digicoins: 1,
-      discount: '20% OFF',
-      category: 'Gadgets',
-      image: 'https://example.com/samsung.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    // Health & Wellness
-    {
-      id: '4',
-      title: 'Meditation App Premium',
-      description: '3 months free premium subscription',
-      subtext: 'Find your inner peace and reduce stress',
-      digicoins: 2,
-      discount: '100% OFF',
-      category: 'Health & Wellness',
-      image: 'https://example.com/meditation.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '5',
-      title: 'Yoga Class Pass',
-      description: '5 free yoga classes at local studios',
-      subtext: 'Strengthen your body and mind',
-      digicoins: 3,
-      discount: '$75 VALUE',
-      category: 'Health & Wellness',
-      image: 'https://example.com/yoga.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    // Digital Wellness
-    {
-      id: '6',
-      title: 'Screen Time Coach',
-      description: 'Personal digital wellness coaching session',
-      subtext: 'Learn healthy digital habits',
-      digicoins: 4,
-      discount: '$50 VALUE',
-      category: 'Digital Wellness',
-      image: 'https://example.com/coach.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '7',
-      title: 'Blue Light Glasses',
-      description: '40% off premium blue light blocking glasses',
-      subtext: 'Protect your eyes from screen strain',
-      digicoins: 2,
-      discount: '40% OFF',
-      category: 'Digital Wellness',
-      image: 'https://example.com/glasses.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    // Entertainment
-    {
-      id: '8',
-      title: 'Netflix Premium',
-      description: '2 months free Netflix subscription',
-      subtext: 'Enjoy your favorite shows and movies',
-      digicoins: 3,
-      discount: '$30 VALUE',
-      category: 'Entertainment',
-      image: 'https://example.com/netflix.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '9',
-      title: 'Spotify Premium',
-      description: '3 months free music streaming',
-      subtext: 'Listen to music without ads',
-      digicoins: 2,
-      discount: '$30 VALUE',
-      category: 'Entertainment',
-      image: 'https://example.com/spotify.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    // Education
-    {
-      id: '10',
-      title: 'Coursera Plus',
-      description: '1 month free access to all courses',
-      subtext: 'Learn new skills from top universities',
-      digicoins: 5,
-      discount: '$59 VALUE',
-      category: 'Education',
-      image: 'https://example.com/coursera.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    },
-    {
-      id: '11',
-      title: 'Language Learning App',
-      description: '6 months premium language learning',
-      subtext: 'Master a new language',
-      digicoins: 4,
-      discount: '$60 VALUE',
-      category: 'Education',
-      image: 'https://example.com/language.jpg',
-      expiresAt: '2024-12-31',
-      usesLeft: 1
-    }
-  ];
-
-  const filteredRewards = rewards.filter(reward => {
-    const matchesSearch = reward.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         reward.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || reward.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const isRewardRedeemed = (rewardId: string): boolean => {
-    return redeemedRewards.some(redeemed => redeemed.id === rewardId);
-  };
-
-  const handleRedeem = (reward: Reward) => {
-    // Check if already redeemed before showing confirmation
-    if (isRewardRedeemed(reward.id)) {
-      Alert.alert(
-        'Already Redeemed',
-        'You have already redeemed this offer.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    
-    setSelectedReward(reward);
-    setShowConfirmation(true);
-  };
-
-  const handleShowRedeemedCode = (reward: Reward) => {
-    setSelectedReward(reward);
-    setShowRedeemedCodeModal(true);
-  };
-
-  const showRedemptionResult = (
-    scenario: 'success' | 'already_redeemed' | 'no_codes' | 'insufficient_balance' | 'error',
-    promoCode?: string,
-    rewardTitle?: string
-  ) => {
-    setRedemptionModalProps({
-      scenario,
-      promoCode: promoCode || '',
-      rewardTitle: rewardTitle || '',
-      userBalance,
-      requiredAmount: selectedReward?.digicoins || 0,
-    });
-    setShowRedemptionModal(true);
-    setShowConfirmation(false);
-    setSelectedReward(null);
-  };
-
-  const handleConfirmRedeem = async (reward: Reward) => {
-    try {
-      setIsRedeeming(true);
-      const userId = user?.uid || 'anonymous'; // Use actual authenticated user ID
-
-      // Check if user has enough balance
-      if (userBalance < reward.digicoins) {
-        showRedemptionResult('insufficient_balance', undefined, reward.title);
-        return;
-      }
-
-      // Check if user already has a promo code for this specific offer
-      const existingUserCode = await getUserPromoCodeForOffer(userId, reward.id);
-      if (existingUserCode) {
-        showRedemptionResult('already_redeemed', existingUserCode.code, reward.title);
-        return;
-      }
-
-      // Get or assign promo code from the database
-      const userPromoCode = await assignPromoCodeToUser(userId, reward.id, reward.expiresAt);
-
-      if (!userPromoCode) {
-        showRedemptionResult('no_codes', undefined, reward.title);
-        return;
-      }
-
-      // Deduct Digicoins and update balance
-      const deductionSuccess = await deductDigicoins(reward.digicoins);
-      
-      if (!deductionSuccess) {
-        showRedemptionResult('error', undefined, reward.title);
-        return;
-      }
-      
-      // Update local state
-      const newBalance = userBalance - reward.digicoins;
-      setUserBalance(newBalance);
-      
-      // Add to redeemed rewards
-      await addRedeemedReward({
-        id: reward.id,
-        redeemedAt: new Date().toISOString(),
-        expiresAt: reward.expiresAt,
-        usesLeft: reward.usesLeft || 1
-      });
-
-      // Update stats
-      await updateStatsOnRedemption(reward.digicoins);
-
-      // Reload redeemed rewards to update UI
-      await loadRedeemedRewards();
-
-      // Show success modal with promo code
-      showRedemptionResult('success', userPromoCode.code, reward.title);
-
-    } catch (error) {
-      console.error('Error redeeming reward:', error);
-      showRedemptionResult('error', undefined, selectedReward?.title);
+      setUserBalance(0);
     } finally {
-      setIsRedeeming(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePurchaseScratchCard = async (): Promise<boolean> => {
+    try {
+      const success = await purchaseScratchCard(SCRATCH_CARD_COST);
+      if (success) {
+        await loadUserBalance();
+        setScratchCardKey(prev => prev + 1);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error purchasing scratch card:', error);
+      return false;
+    }
+  };
+
+  const handleScratchReward = async (reward: any) => {
+    try {
+      await processReward(reward);
+      await loadUserBalance();
+    } catch (error) {
+      console.error('Error processing scratch reward:', error);
     }
   };
 
   if (isLoading) {
     return (
-      <LinearGradient
-        colors={['#1D2024', '#6E7A8A']}
-        style={styles.container}
-      >
+      <LinearGradient colors={['#1D2024', '#6E7A8A']} style={styles.container}>
         <Header />
-        <LoadingSpinner text="Loading rewards..." />
+        <LoadingSpinner text="Loading marketplace..." />
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#1D2024', '#6E7A8A']}
-      style={styles.container}
-    >
-      {isRedeeming && <LoadingSpinner overlay text="Processing redemption..." />}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <LinearGradient colors={['#1D2024', '#6E7A8A']} style={styles.container}>
+      <Header />
+      
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Header />
+          {/* Header */}
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Market</Text>
+            <Text style={styles.title}>Marketplace</Text>
+            <Text style={styles.subtitle}>Redeem your Detoxcoins for rewards</Text>
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search rewards..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+          {/* Coming Soon Section for Rewards/Offers */}
+          <View style={styles.comingSoonSection}>
+            <View style={styles.comingSoonCard}>
+              <Ionicons name="gift-outline" size={48} color={colors.primary} />
+              <Text style={styles.comingSoonTitle}>Rewards & Offers</Text>
+              <Text style={styles.comingSoonDescription}>
+                Amazing rewards and exclusive offers are coming soon! 
+                Redeem your Detoxcoins for gadgets, subscriptions, and more.
+              </Text>
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Scratch Cards Section */}
+          <View style={styles.scratchSection}>
+            <Text style={styles.sectionTitle}>Try Your Luck</Text>
+            <Text style={styles.sectionSubtitle}>
+              Purchase a scratch card for {SCRATCH_CARD_COST} Detoxcoins and win instant rewards!
+            </Text>
+            
+            <ScratchCard
+              key={scratchCardKey}
+              cost={SCRATCH_CARD_COST}
+              userBalance={userBalance}
+              onPurchase={handlePurchaseScratchCard}
+              onReward={handleScratchReward}
             />
           </View>
 
-          {/* Categories */}
-          <Text style={styles.sectionTitle}>Categories</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.categoriesContainer}
-          >
-            {categories.map((category) => (
-              <TouchableOpacity 
-                key={category} 
-                style={[
-                  styles.categoryButton,
-                  selectedCategory === category && styles.categoryButtonActive
-                ]}
-                onPress={() => setSelectedCategory(category)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  selectedCategory === category && styles.categoryTextActive
-                ]}>{category}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Featured Section */}
-          <Text style={styles.sectionTitle}>Featured Rewards</Text>
-          {filteredRewards.length > 0 ? (
-            filteredRewards.map((reward) => (
-              <RewardCard
-                key={reward.id}
-                reward={reward}
-                onRedeem={() => handleRedeem(reward)}
-                onShowRedeemedCode={() => handleShowRedeemedCode(reward)}
-                isRedeemed={isRewardRedeemed(reward.id)}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="gift-outline" size={64} color={colors.textSecondary} />
-              <Text style={styles.emptyStateTitle}>No Rewards Found</Text>
-              <Text style={styles.emptyStateText}>
-                {searchQuery 
-                  ? `No rewards match "${searchQuery}"`
-                  : selectedCategory === 'All' 
-                    ? 'No rewards available at the moment'
-                    : `No rewards available in ${selectedCategory}`
+          {/* Mockup Preview (Hidden - for development reference) */}
+          {__DEV__ && false && (
+            <View style={styles.mockupSection}>
+              <Text style={styles.mockupTitle}>Developer Preview</Text>
+              <Text style={styles.mockupDescription}>
+                This section contains mockup reward cards for easy reproduction when implementing real rewards.
+                Set the condition above to 'true' to view mockup cards.
+              </Text>
+              
+              {/* 
+                TODO: When implementing real rewards, restore the following:
+                
+                1. Import RewardCard component
+                2. Add reward state management
+                3. Add category filtering
+                4. Add search functionality
+                5. Add redemption modals
+                
+                Example reward structure:
+                {
+                  id: 'reward-id',
+                  title: 'Reward Title',
+                  description: 'Reward description',
+                  subtext: 'Additional info',
+                  detoxcoins: 10,
+                  discount: '50% OFF',
+                  category: 'Category',
+                  image: 'image-url',
+                  expiresAt: '2024-12-31',
+                  usesLeft: 1
                 }
-              </Text>
-              <Text style={styles.emptyStateSubtext}>
-                Check back later or try a different category!
-              </Text>
+              */}
             </View>
           )}
         </View>
       </ScrollView>
-
-      {/* Confirmation Modal */}
-      <RedeemConfirmationModal
-        visible={showConfirmation}
-        reward={selectedReward}
-        userBalance={userBalance}
-        onConfirm={() => handleConfirmRedeem(selectedReward!)}
-        onCancel={() => {
-          setShowConfirmation(false);
-          setSelectedReward(null);
-        }}
-      />
-
-      {/* Redemption Result Modal */}
-      <RedemptionModal
-        visible={showRedemptionModal}
-        onClose={() => setShowRedemptionModal(false)}
-        scenario={redemptionModalProps.scenario}
-        promoCode={redemptionModalProps.promoCode}
-        rewardTitle={redemptionModalProps.rewardTitle}
-        userBalance={redemptionModalProps.userBalance}
-        requiredAmount={redemptionModalProps.requiredAmount}
-      />
-
-      {/* Redeemed Code Modal */}
-      <RedeemedCodeModal
-        visible={showRedeemedCodeModal}
-        reward={selectedReward}
-        onClose={() => {
-          setShowRedeemedCodeModal(false);
-          setSelectedReward(null);
-        }}
-      />
     </LinearGradient>
   );
 };
@@ -505,77 +178,87 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.round,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.xl,
-    marginHorizontal: spacing.md,
-  },
-  searchIcon: {
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
+  subtitle: {
     ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
-  sectionTitle: {
-    ...typography.h3,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  categoriesContainer: {
-    paddingHorizontal: spacing.md,
+  comingSoonSection: {
     marginBottom: spacing.xl,
-    minHeight: 44, // Ensure consistent height
   },
-  categoryButton: {
+  comingSoonCard: {
     backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  comingSoonTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  comingSoonDescription: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.round,
-    marginRight: spacing.sm,
-    minWidth: 80, // Ensure minimum width for consistency
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  categoryButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  categoryText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  categoryTextActive: {
-    color: colors.background,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xl * 2,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyStateTitle: {
-    ...typography.h3,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  emptyStateSubtext: {
+  comingSoonBadgeText: {
     ...typography.caption,
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  scratchSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  sectionSubtitle: {
+    ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  mockupSection: {
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#FFC107',
+  },
+  mockupTitle: {
+    ...typography.h3,
+    color: '#FFC107',
+    marginBottom: spacing.sm,
+  },
+  mockupDescription: {
+    ...typography.body,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 });
 
-export default MarketScreen; 
+export default MarketScreen;

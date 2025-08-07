@@ -68,11 +68,11 @@ const AchievementsScreen = () => {
 
   const getRarityIcon = (rarity: Achievement['rarity']) => {
     switch (rarity) {
-      case 'common': return '⭐';
-      case 'rare': return '🌟';
-      case 'epic': return '💫';
-      case 'legendary': return '✨';
-      default: return '⭐';
+              case 'common': return '';
+      case 'rare': return '';
+      case 'epic': return '';
+      case 'legendary': return '';
+      default: return '';
     }
   };
 
@@ -87,7 +87,7 @@ const AchievementsScreen = () => {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.headerSection}>
-            <Text style={styles.title}>🏆 Achievements</Text>
+            <Text style={styles.title}>Achievements</Text>
             <Text style={styles.subtitle}>Track your digital detox milestones</Text>
           </View>
 
@@ -193,7 +193,7 @@ const AchievementsScreen = () => {
             {/* Unlocked Achievements */}
             {filteredAchievements.filter(a => a.unlocked).length > 0 && (
               <View style={styles.achievementGroup}>
-                <Text style={styles.groupTitle}>🏆 Unlocked ({filteredAchievements.filter(a => a.unlocked).length})</Text>
+                <Text style={styles.groupTitle}>Unlocked ({filteredAchievements.filter(a => a.unlocked).length})</Text>
                 {filteredAchievements
                   .filter(a => a.unlocked)
                   .sort((a, b) => (b.unlockedAt?.getTime() || 0) - (a.unlockedAt?.getTime() || 0))
@@ -229,7 +229,7 @@ const AchievementsScreen = () => {
             {/* Locked Achievements */}
             {filteredAchievements.filter(a => !a.unlocked && a.progress === 0).length > 0 && (
               <View style={styles.achievementGroup}>
-                <Text style={styles.groupTitle}>🔒 Locked ({filteredAchievements.filter(a => !a.unlocked && a.progress === 0).length})</Text>
+                <Text style={styles.groupTitle}>Locked ({filteredAchievements.filter(a => !a.unlocked && a.progress === 0).length})</Text>
                 {filteredAchievements
                   .filter(a => !a.unlocked && a.progress === 0)
                   .sort((a, b) => {

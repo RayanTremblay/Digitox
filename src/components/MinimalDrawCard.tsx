@@ -13,7 +13,7 @@ import {
   AD_REWARD_TICKETS,
   getCategoryIcon
 } from '../utils/drawManager';
-import { getDigicoinsBalance } from '../utils/storage';
+import { getDetoxcoinsBalance } from '../utils/storage';
 
 interface MinimalDrawCardProps {
   draw: DrawEntry;
@@ -65,7 +65,7 @@ const MinimalDrawCard: React.FC<MinimalDrawCardProps> = ({ draw, onRefresh }) =>
 
   const loadBalance = async () => {
     try {
-      const currentBalance = await getDigicoinsBalance();
+      const currentBalance = await getDetoxcoinsBalance();
       setBalance(currentBalance);
     } catch (error) {
       console.error('Error loading balance:', error);
@@ -87,7 +87,7 @@ const MinimalDrawCard: React.FC<MinimalDrawCardProps> = ({ draw, onRefresh }) =>
 
     const totalCost = quantity * TICKET_COST;
     if (balance < totalCost) {
-      Alert.alert('Insufficient Balance', `You need ${totalCost} Digicoins to buy ${quantity} tickets.`);
+      Alert.alert('Insufficient Balance', `You need ${totalCost} Detoxcoins to buy ${quantity} tickets.`);
       return;
     }
 
@@ -100,7 +100,7 @@ const MinimalDrawCard: React.FC<MinimalDrawCardProps> = ({ draw, onRefresh }) =>
         onRefresh?.();
         setShowModal(false);
         setTicketQuantity('1');
-        Alert.alert('Success!', `You purchased ${quantity} tickets for ${totalCost} Digicoins!`);
+        Alert.alert('Success!', `You purchased ${quantity} tickets for ${totalCost} Detoxcoins!`);
       } else {
         Alert.alert('Error', 'Failed to purchase tickets. Please try again.');
       }
@@ -256,8 +256,8 @@ const MinimalDrawCard: React.FC<MinimalDrawCardProps> = ({ draw, onRefresh }) =>
             </View>
 
             <Text style={styles.modalSubtitle}>{draw.title}</Text>
-            <Text style={styles.modalInfo}>Each ticket costs {TICKET_COST} Digicoin</Text>
-            <Text style={styles.modalBalance}>Your balance: {balance} Digicoins</Text>
+            <Text style={styles.modalInfo}>Each ticket costs {TICKET_COST} Detoxcoin</Text>
+            <Text style={styles.modalBalance}>Your balance: {balance} Detoxcoins</Text>
 
             <View style={styles.quantityContainer}>
               <Text style={styles.quantityLabel}>Number of tickets:</Text>
@@ -272,7 +272,7 @@ const MinimalDrawCard: React.FC<MinimalDrawCardProps> = ({ draw, onRefresh }) =>
             </View>
 
             <Text style={styles.totalCost}>
-              Total cost: {parseInt(ticketQuantity) * TICKET_COST || 0} Digicoins
+              Total cost: {parseInt(ticketQuantity) * TICKET_COST || 0} Detoxcoins
             </Text>
 
             <View style={styles.modalButtons}>

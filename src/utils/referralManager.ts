@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addDigicoins, getDigicoinsBalance } from './storage';
+import { addDetoxcoins, getDetoxcoinsBalance } from './storage';
 
-const REFERRAL_REWARD = 20; // 20 Digicoins per successful referral
+const REFERRAL_REWARD = 20; // 20 Detoxcoins per successful referral
 
 export interface ReferralData {
   userId: string;
@@ -71,7 +71,7 @@ const generateUserId = (): string => {
 export const generateReferralLink = (userId: string): string => {
   // Since the app isn't published yet, generate a placeholder link
   // In production, this would be your actual app store links with deep linking
-  const baseUrl = 'https://digitox.app/invite';
+  const baseUrl = 'https://detoxly.app/invite';
   return `${baseUrl}?referrer=${userId}&utm_source=referral&utm_medium=social`;
 };
 
@@ -79,16 +79,16 @@ export const generateReferralLink = (userId: string): string => {
 export const generateShareMessage = (userId: string, userName?: string): string => {
   const link = generateReferralLink(userId);
   const personalizedMessage = userName 
-    ? `Hey! ${userName} invited you to try Digitox - `
-    : 'Hey! I thought you might like Digitox - ';
+    ? `Hey! ${userName} invited you to try Detoxly - `
+    : 'Hey! I thought you might like Detoxly - ';
     
-  return `${personalizedMessage}a digital wellness app that helps you reduce screen time and earn rewards! 📱✨
+  return `${personalizedMessage}a digital wellness app that helps you reduce screen time and earn rewards!
 
-Click my link to download and I'll get bonus Digicoins when you join:
+Click my link to download and I'll get bonus Detoxcoins when you join:
 
 ${link}
 
-Let's build healthier digital habits together! 🌟`;
+Let's build healthier digital habits together!`;
 };
 
 // Record an invite being sent
@@ -128,7 +128,7 @@ export const processSuccessfulReferral = async (userId?: string): Promise<boolea
     }
     
     // Award the referral bonus automatically
-    await addDigicoins(REFERRAL_REWARD);
+    await addDetoxcoins(REFERRAL_REWARD);
     
     // Update referral data
     referralData.successfulReferrals += 1;
@@ -153,7 +153,7 @@ export const processSuccessfulReferral = async (userId?: string): Promise<boolea
 export const getReferralStats = async () => {
   try {
     const referralData = await getUserReferralData();
-    const currentBalance = await getDigicoinsBalance();
+    const currentBalance = await getDetoxcoinsBalance();
     
     return {
       userId: referralData.userId,

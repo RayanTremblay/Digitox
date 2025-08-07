@@ -78,8 +78,8 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
         onRewardClaimed?.(); // Notify parent
 
         Alert.alert(
-          'Daily Reward Claimed! 🎉',
-          `Amazing! You earned ${result.reward} Digicoins!`,
+          'Daily Reward Claimed!',
+          `Amazing! You earned ${result.reward} Detoxcoins!`,
           [{ text: 'Awesome!' }]
         );
       } else {
@@ -189,7 +189,7 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
                 </Text>
               </View>
               {stats.canClaim && (
-                <Text style={styles.claimHint}>Get 0-100 Digicoins randomly!</Text>
+                <Text style={styles.claimHint}>Get 0-100 Detoxcoins randomly!</Text>
               )}
             </TouchableOpacity>
 

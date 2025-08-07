@@ -13,11 +13,11 @@ const HelpSupportScreen = () => {
   const navigation = useNavigation<NavigationProp>();
 
   const handleEmailPress = () => {
-    Linking.openURL('mailto:support@digitox.app');
+    Linking.openURL('mailto:support@detoxly.app');
   };
 
   const handleWebsitePress = () => {
-    Linking.openURL('https://digitox.app/support');
+    Linking.openURL('https://detoxly.app/support');
   };
 
   return (
@@ -47,7 +47,7 @@ const HelpSupportScreen = () => {
               • Set your daily detox goal
               • Start a detox session
               • Track your progress
-              • Earn Digicoins
+              • Earn Detoxcoins
               • Build your streak
             </Text>
           </View>
@@ -61,15 +61,15 @@ const HelpSupportScreen = () => {
               </Text>
             </View>
             <View style={styles.faqItem}>
-              <Text style={styles.question}>How are Digicoins earned?</Text>
+              <Text style={styles.question}>How are Detoxcoins earned?</Text>
               <Text style={styles.answer}>
-                Digicoins are earned by completing detox sessions and achieving daily goals. The longer your sessions and the more consistent you are, the more you earn.
+                Detoxcoins are earned by completing detox sessions and achieving daily goals. The longer your sessions and the more consistent you are, the more you earn.
               </Text>
             </View>
             <View style={styles.faqItem}>
               <Text style={styles.question}>What happens if I break my streak?</Text>
               <Text style={styles.answer}>
-                Your streak resets to 0, but your total detox time and Digicoins remain. Start a new streak by completing your daily goal.
+                Your streak resets to 0, but your total detox time and Detoxcoins remain. Start a new streak by completing your daily goal.
               </Text>
             </View>
           </View>

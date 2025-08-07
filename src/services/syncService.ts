@@ -73,11 +73,11 @@ class SyncService {
       // Update local storage with merged data
       await this.saveLocalUserData(mergedData);
 
-      console.log('✅ User data synced successfully');
+      console.log('User data synced successfully');
       return { success: true };
 
     } catch (error: any) {
-      console.error('❌ Sync failed:', error);
+      console.error('Sync failed:', error);
       return { success: false, error: error.message };
     } finally {
       this.syncInProgress = false;
@@ -90,14 +90,14 @@ class SyncService {
   private async getLocalUserData(): Promise<Partial<UserCloudData>> {
     try {
       const keys = [
-        '@digitox_balance',
-        '@digitox_total_earned',
-        '@digitox_total_time',
-        '@digitox_daily_time',
-        '@digitox_current_streak',
-        '@digitox_today_detox_time',
-        '@digitox_weekly_progress',
-        '@digitox_daily_goal',
+        '@detoxly_balance',
+        '@detoxly_total_earned',
+        '@detoxly_total_time',
+        '@detoxly_daily_time',
+        '@detoxly_current_streak',
+        '@detoxly_today_detox_time',
+        '@detoxly_weekly_progress',
+        '@detoxly_daily_goal',
         'userProfile',
       ];
 
@@ -117,17 +117,17 @@ class SyncService {
       // Transform local data to cloud format
       return {
         stats: {
-          balance: data['@digitox_balance'] || 0,
-          totalEarned: data['@digitox_total_earned'] || 0,
-          totalTimeSaved: data['@digitox_total_time'] || 0,
-          dailyTimeSaved: data['@digitox_daily_time'] || 0,
-          currentStreak: data['@digitox_current_streak'] || 0,
-          todayDetoxTime: data['@digitox_today_detox_time'] || 0,
-          weeklyProgress: data['@digitox_weekly_progress'] || { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 },
+          balance: data['@detoxly_balance'] || 0,
+          totalEarned: data['@detoxly_total_earned'] || 0,
+          totalTimeSaved: data['@detoxly_total_time'] || 0,
+          dailyTimeSaved: data['@detoxly_daily_time'] || 0,
+          currentStreak: data['@detoxly_current_streak'] || 0,
+          todayDetoxTime: data['@detoxly_today_detox_time'] || 0,
+          weeklyProgress: data['@detoxly_weekly_progress'] || { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 },
           lastSyncAt: new Date().toISOString(),
         },
         settings: {
-          dailyGoal: data['@digitox_daily_goal'] || 120,
+          dailyGoal: data['@detoxly_daily_goal'] || 120,
           notifications: true,
           theme: 'dark',
         },
@@ -155,17 +155,17 @@ class SyncService {
       const updates: [string, string][] = [];
 
       if (data.stats) {
-        updates.push(['@digitox_balance', JSON.stringify(data.stats.balance)]);
-        updates.push(['@digitox_total_earned', JSON.stringify(data.stats.totalEarned)]);
-        updates.push(['@digitox_total_time', JSON.stringify(data.stats.totalTimeSaved)]);
-        updates.push(['@digitox_daily_time', JSON.stringify(data.stats.dailyTimeSaved)]);
-        updates.push(['@digitox_current_streak', JSON.stringify(data.stats.currentStreak)]);
-        updates.push(['@digitox_today_detox_time', JSON.stringify(data.stats.todayDetoxTime)]);
-        updates.push(['@digitox_weekly_progress', JSON.stringify(data.stats.weeklyProgress)]);
+        updates.push(['@detoxly_balance', JSON.stringify(data.stats.balance)]);
+        updates.push(['@detoxly_total_earned', JSON.stringify(data.stats.totalEarned)]);
+        updates.push(['@detoxly_total_time', JSON.stringify(data.stats.totalTimeSaved)]);
+        updates.push(['@detoxly_daily_time', JSON.stringify(data.stats.dailyTimeSaved)]);
+        updates.push(['@detoxly_current_streak', JSON.stringify(data.stats.currentStreak)]);
+        updates.push(['@detoxly_today_detox_time', JSON.stringify(data.stats.todayDetoxTime)]);
+        updates.push(['@detoxly_weekly_progress', JSON.stringify(data.stats.weeklyProgress)]);
       }
 
       if (data.settings) {
-        updates.push(['@digitox_daily_goal', JSON.stringify(data.settings.dailyGoal)]);
+        updates.push(['@detoxly_daily_goal', JSON.stringify(data.settings.dailyGoal)]);
       }
 
       if (data.profile) {
@@ -268,10 +268,10 @@ class SyncService {
         lastUpdated: serverTimestamp(),
       }, { merge: true });
 
-      console.log('✅ Data backed up to cloud');
+      console.log('Data backed up to cloud');
       return { success: true };
     } catch (error: any) {
-      console.error('❌ Backup failed:', error);
+      console.error('Backup failed:', error);
       return { success: false, error: error.message };
     }
   }
@@ -296,10 +296,10 @@ class SyncService {
       const cloudData = cloudDoc.data() as UserCloudData;
       await this.saveLocalUserData(cloudData);
 
-      console.log('✅ Data restored from cloud');
+      console.log('Data restored from cloud');
       return { success: true };
     } catch (error: any) {
-      console.error('❌ Restore failed:', error);
+      console.error('Restore failed:', error);
       return { success: false, error: error.message };
     }
   }

@@ -133,7 +133,7 @@ export const activateAdBoost = async (): Promise<{ success: boolean; error?: str
     
     await AsyncStorage.setItem(BOOST_DATA_KEY, JSON.stringify(updatedData));
     
-    console.log('✅ 2x boost activated via ad!', {
+    console.log('2x boost activated via ad!', {
       activatedAt: now,
       expiresAt: expiresAt,
       duration: `${AD_BOOST_DURATION_MS / 60000} minutes`

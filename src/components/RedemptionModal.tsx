@@ -158,30 +158,30 @@ const RedemptionModal = ({
       <Text style={styles.title}>Insufficient Balance</Text>
       
       <Text style={styles.description}>
-        You don't have enough Digicoins to redeem this offer.
+        You don't have enough Detoxcoins to redeem this offer.
       </Text>
       
       <View style={styles.balanceContainer}>
         <View style={styles.balanceRow}>
           <Text style={styles.balanceLabel}>Required:</Text>
-          <Text style={styles.balanceValue}>{requiredAmount} Digicoins</Text>
+          <Text style={styles.balanceValue}>{requiredAmount} Detoxcoins</Text>
         </View>
         <View style={styles.balanceRow}>
           <Text style={styles.balanceLabel}>Your Balance:</Text>
           <Text style={[styles.balanceValue, styles.insufficientBalance]}>
-            {userBalance} Digicoins
+            {userBalance} Detoxcoins
           </Text>
         </View>
         <View style={styles.balanceRow}>
           <Text style={styles.balanceLabel}>Needed:</Text>
           <Text style={styles.balanceValue}>
-            {(requiredAmount || 0) - (userBalance || 0)} more Digicoins
+            {(requiredAmount || 0) - (userBalance || 0)} more Detoxcoins
           </Text>
         </View>
       </View>
       
       <Text style={styles.note}>
-        Keep using the app to earn more Digicoins and come back when you have enough!
+        Keep using the app to earn more Detoxcoins and come back when you have enough!
       </Text>
       
       <TouchableOpacity style={styles.standaloneButton} onPress={onClose}>

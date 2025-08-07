@@ -1,4 +1,4 @@
-package com.digitox.app
+package com.detoxly.app
 
 import android.app.Application
 import android.content.res.Configuration

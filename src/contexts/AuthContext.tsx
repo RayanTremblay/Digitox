@@ -53,12 +53,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const syncResult = await syncService.syncUserData();
           if (syncResult.success) {
-            console.log('✅ Initial data sync completed');
+            console.log('Initial data sync completed');
           } else {
-            console.warn('⚠️ Initial sync failed:', syncResult.error);
+            console.warn('Initial sync failed:', syncResult.error);
           }
         } catch (error) {
-          console.error('❌ Sync error during login:', error);
+          console.error('Sync error during login:', error);
         }
       }
       

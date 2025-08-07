@@ -154,7 +154,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({
                 styles.rewardText,
                 { color: isUnlocked ? '#FFD700' : colors.textSecondary }
               ]}>
-                +{achievement.reward.digicoins} Digicoins
+                +{achievement.reward.detoxcoins} Detoxcoins
               </Text>
             </View>
           )}

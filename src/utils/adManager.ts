@@ -26,7 +26,7 @@ class AdManager {
   // Initialize ad manager
   async initialize(): Promise<boolean> {
     try {
-      console.log('🎬 Ad Manager: Initializing...');
+      console.log('Ad Manager: Initializing...');
       
       // Create rewarded ad instance
       this.rewardedAd = RewardedAd.createForAdRequest(AD_UNIT_IDS.REWARDED);
@@ -35,10 +35,10 @@ class AdManager {
       this.setupAdEventListeners();
       
       this.isInitialized = true;
-      console.log('✅ Ad Manager: Initialized successfully');
+      console.log('Ad Manager: Initialized successfully');
       return true;
     } catch (error) {
-      console.error('❌ Ad Manager: Failed to initialize', error);
+      console.error('Ad Manager: Failed to initialize', error);
       this.isInitialized = false;
       return false;
     }
@@ -48,19 +48,19 @@ class AdManager {
     if (!this.rewardedAd) return;
 
     this.rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      console.log('✅ Rewarded ad loaded');
+      console.log('Rewarded ad loaded');
       this.isAdLoaded = true;
       this.isLoadingAd = false;
     });
 
     this.rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
-      console.error('❌ Rewarded ad error:', error);
+      console.error('Rewarded ad error:', error);
       this.isAdLoaded = false;
       this.isLoadingAd = false;
     });
 
     this.rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
-      console.log('🎉 User earned reward:', reward);
+      console.log('User earned reward:', reward);
     });
   }
 
@@ -78,35 +78,35 @@ class AdManager {
       return true;
     } catch (error) {
       this.isLoadingAd = false;
-      console.error('❌ Error loading rewarded ad:', error);
+      console.error('Error loading rewarded ad:', error);
       return false;
     }
   }
 
   // Show rewarded ad
   async showRewardedAd(): Promise<{ success: boolean; reward?: AdReward }> {
-    console.log('🚀 Ad Manager: showRewardedAd() called');
+    console.log('Ad Manager: showRewardedAd() called');
     console.log('📊 Ad Manager: Current state - isAdLoaded:', this.isAdLoaded, 'rewardedAd exists:', !!this.rewardedAd);
     
     // STRICT: Check if SDK is properly initialized first
     if (!this.isInitialized) {
-      console.log('❌ Ad Manager: SDK not initialized, cannot show ads');
+      console.log('Ad Manager: SDK not initialized, cannot show ads');
       return { success: false };
     }
     
     if (!this.isAdLoaded || !this.rewardedAd) {
-      console.log('⚠️ Ad Manager: No ad loaded, attempting to load...');
+      console.log('Ad Manager: No ad loaded, attempting to load...');
       const loaded = await this.loadRewardedAd();
       console.log('📥 Ad Manager: Load attempt result:', loaded);
       if (!loaded) {
-        console.log('❌ Ad Manager: Failed to load ad, returning failure');
+        console.log('Ad Manager: Failed to load ad, returning failure');
         return { success: false };
       }
     }
 
     try {
-      console.log('🎬 Ad Manager: Attempting to show rewarded ad...');
-      console.log('🔧 Ad Manager: Ad Unit ID:', AD_UNIT_IDS.REWARDED);
+      console.log('Ad Manager: Attempting to show rewarded ad...');
+      console.log('Ad Manager: Ad Unit ID:', AD_UNIT_IDS.REWARDED);
       
       // Create a promise that will resolve when the ad is properly shown
       const adShowPromise = new Promise<boolean>((resolve, reject) => {
@@ -120,14 +120,14 @@ class AdManager {
         // Set up temporary event listeners to track ad completion
         const handleAdDismissed = () => {
           cleanup();
-          console.log('✅ Ad Manager: Ad was properly dismissed after being watched');
+          console.log('Ad Manager: Ad was properly dismissed after being watched');
           adShown = true;
           resolve(true);
         };
         
         const handleAdFailedToShow = (error: any) => {
           cleanup();
-          console.log('❌ Ad Manager: Ad failed to show:', error);
+          console.log('Ad Manager: Ad failed to show:', error);
           reject(error);
         };
         
@@ -139,7 +139,7 @@ class AdManager {
         timeout = setTimeout(() => {
           cleanup();
           if (!adShown) {
-            console.log('❌ Ad Manager: Ad show timeout - no response after 10 seconds');
+            console.log('Ad Manager: Ad show timeout - no response after 10 seconds');
             reject(new Error('Ad show timeout'));
           }
         }, 10000);
@@ -158,7 +158,7 @@ class AdManager {
       this.rewardedAd = RewardedAd.createForAdRequest(AD_UNIT_IDS.REWARDED);
       this.setupAdEventListeners();
       
-      console.log('✅ Ad Manager: User watched ad, reward granted');
+      console.log('Ad Manager: User watched ad, reward granted');
       
       // Preload next ad
       setTimeout(() => this.preloadAd(), 1000);
@@ -171,8 +171,8 @@ class AdManager {
         }
       };
     } catch (error) {
-      console.error('❌ Ad Manager: Error showing rewarded ad', error);
-      console.error('❌ Ad Manager: Error details:', JSON.stringify(error));
+      console.error('Ad Manager: Error showing rewarded ad', error);
+      console.error('Ad Manager: Error details:', JSON.stringify(error));
       this.isAdLoaded = false; // Reset state on error
       return { success: false };
     }

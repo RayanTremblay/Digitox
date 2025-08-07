@@ -176,7 +176,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.logo}>Digitox</Text>
+            <Text style={styles.logo}>Detoxly</Text>
             <Text style={styles.subtitle}>
               {isLogin ? 'Welcome back!' : 'Create your account'}
             </Text>

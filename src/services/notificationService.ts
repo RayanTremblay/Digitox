@@ -30,33 +30,33 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 const NOTIFICATION_MESSAGES = {
   gentle: [
     "🌱 Take a moment to breathe. Your phone will be here when you're ready.",
-    "✨ How about a 10-minute digital break? Your mind deserves some peace.",
+    "How about a 10-minute digital break? Your mind deserves some peace.",
     "🌸 Small steps away from your screen can lead to big changes in your day.",
-    "🕊️ Your phone doesn't need your attention right now. You deserve this break.",
+    "Your phone doesn't need your attention right now. You deserve this break.",
     "🌺 Consider putting your phone aside and enjoying the present moment.",
     "🌿 A gentle reminder: real life is happening beyond your screen.",
     "💙 Your well-being matters more than any notification. Take a break.",
     "🌅 Every moment away from your phone is a gift to yourself."
   ],
   encouraging: [
-    "💪 You've got this! Time for a digital detox break - your future self will thank you!",
-    "🎯 Ready to reclaim your time? Put that phone down and do something amazing!",
-    "🚀 Break free from the scroll! Your real life adventure is waiting.",
-    "⭐ You're stronger than your phone's pull. Show it who's boss!",
-    "🏆 Every minute offline is a victory. You're building amazing habits!",
-    "🔥 Your focus is your superpower. Use it for something meaningful today!",
-    "🌟 Time to shine! Put your phone away and light up the real world.",
-    "💎 You're worth more than endless scrolling. Go create something beautiful!"
+      "You've got this! Time for a digital detox break - your future self will thank you!",
+  "Ready to reclaim your time? Put that phone down and do something amazing!",
+  "Break free from the scroll! Your real life adventure is waiting.",
+  "You're stronger than your phone's pull. Show it who's boss!",
+  "Every minute offline is a victory. You're building amazing habits!",
+  "Your focus is your superpower. Use it for something meaningful today!",
+  "Time to shine! Put your phone away and light up the real world.",
+  "You're worth more than endless scrolling. Go create something beautiful!"
   ],
   challenging: [
     "⚡ Stop scrolling, start living! Your dreams won't achieve themselves.",
-    "🎪 The digital circus can wait. Your real life needs the main character - YOU!",
+    "The digital circus can wait. Your real life needs the main character - YOU!",
     "🔋 Your battery isn't the only thing that needs charging. Recharge your LIFE!",
     "⏰ Time is your most valuable currency. Stop spending it on your phone!",
-    "🎭 Stop being a spectator of other people's lives. GO LIVE YOUR OWN!",
-    "🏃‍♂️ Your phone is keeping you from your potential. BREAK FREE NOW!",
-    "🎨 You're the artist of your life. Put down the phone and pick up the brush!",
-    "🌊 Don't drown in the digital ocean. SWIM TO SHORE and live authentically!"
+    "Stop being a spectator of other people's lives. GO LIVE YOUR OWN!",
+    "Your phone is keeping you from your potential. BREAK FREE NOW!",
+    "You're the artist of your life. Put down the phone and pick up the brush!",
+    "Don't drown in the digital ocean. SWIM TO SHORE and live authentically!"
   ]
 };
 
@@ -98,21 +98,21 @@ class NotificationService {
       // Request permissions
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
-        console.log('❌ Notification permissions denied');
+        console.log('Notification permissions denied');
         return false;
       }
 
       // Get and store push token
       const token = await this.registerForPushNotifications();
       if (token) {
-        console.log('✅ Notification service initialized successfully');
+        console.log('Notification service initialized successfully');
         await this.scheduleNotifications();
         return true;
       }
 
       return false;
     } catch (error) {
-      console.error('❌ Failed to initialize notifications:', error);
+      console.error('Failed to initialize notifications:', error);
       return false;
     }
   }
@@ -123,7 +123,7 @@ class NotificationService {
   private async requestPermissions(): Promise<boolean> {
     try {
       if (!Device.isDevice) {
-        console.log('⚠️ Notifications only work on physical devices');
+        console.log('Notifications only work on physical devices');
         return false;
       }
 
@@ -136,13 +136,13 @@ class NotificationService {
       }
 
       if (finalStatus !== 'granted') {
-        console.log('❌ Notification permissions not granted');
+        console.log('Notification permissions not granted');
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ Error requesting permissions:', error);
+      console.error('Error requesting permissions:', error);
       return false;
     }
   }
@@ -159,9 +159,9 @@ class NotificationService {
           projectId: Constants.expoConfig?.extra?.eas?.projectId,
         });
         token = data;
-        console.log('📱 Push token:', token);
+        console.log('Push token:', token);
       } else {
-        console.log('⚠️ Must use physical device for push notifications');
+        console.log('Must use physical device for push notifications');
       }
 
       if (Platform.OS === 'android') {
@@ -179,7 +179,7 @@ class NotificationService {
 
       return token || null;
     } catch (error) {
-      console.error('❌ Error getting push token:', error);
+      console.error('Error getting push token:', error);
       return null;
     }
   }
@@ -213,7 +213,7 @@ class NotificationService {
 
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: '📱 Digital Detox Reminder',
+              title: 'Digital Detox Reminder',
               body: message,
               sound: true,
             },
@@ -222,9 +222,9 @@ class NotificationService {
         }
       }
 
-      console.log(`✅ Scheduled ${notificationsPerDay * 7} notifications for the next 7 days`);
+      console.log(`Scheduled ${notificationsPerDay * 7} notifications for the next 7 days`);
     } catch (error) {
-      console.error('❌ Error scheduling notifications:', error);
+      console.error('Error scheduling notifications:', error);
     }
   }
 
@@ -273,7 +273,7 @@ class NotificationService {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🌟 You\'ve Got This!',
+          title: 'You\'ve Got This!',
           body: message,
           sound: true,
         },
@@ -282,7 +282,7 @@ class NotificationService {
 
       console.log('📢 Sent immediate encouragement notification');
     } catch (error) {
-      console.error('❌ Error sending immediate notification:', error);
+      console.error('Error sending immediate notification:', error);
     }
   }
 
@@ -300,9 +300,9 @@ class NotificationService {
         await Notifications.cancelAllScheduledNotificationsAsync();
       }
 
-      console.log('⚙️ Notification settings updated');
+      console.log('Notification settings updated');
     } catch (error) {
-      console.error('❌ Error updating settings:', error);
+      console.error('Error updating settings:', error);
     }
   }
 
@@ -316,7 +316,7 @@ class NotificationService {
         this.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
       }
     } catch (error) {
-      console.error('❌ Error loading notification settings:', error);
+      console.error('Error loading notification settings:', error);
       this.settings = DEFAULT_SETTINGS;
     }
   }

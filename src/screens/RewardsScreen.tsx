@@ -5,29 +5,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import Header from '../components/Header';
 import ScratchCard, { ScratchReward } from '../components/ScratchCard';
-import MinimalDrawCard from '../components/MinimalDrawCard';
 import { purchaseScratchCard, processReward, getScratchCardCost } from '../utils/scratchCardManager';
-import { getDigicoinsBalance } from '../utils/storage';
-import { getActiveDraws, DrawEntry } from '../utils/drawManager';
+import { getDetoxcoinsBalance } from '../utils/storage';
 import adManager from '../utils/adManager';
+import { useAuth } from '../contexts/AuthContext';
 
 const RewardsScreen = () => {
+  const { user } = useAuth();
   const [userBalance, setUserBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [scratchCardKey, setScratchCardKey] = useState(0);
-  const [draws, setDraws] = useState<DrawEntry[]>([]);
 
   const SCRATCH_CARD_COST = 5;
 
-  // Load user balance and draws
+  // Load user balance
   const loadUserBalance = async () => {
     try {
-      const [balance, activeDraws] = await Promise.all([
-        getDigicoinsBalance(),
-        getActiveDraws(),
-      ]);
+      const balance = await getDetoxcoinsBalance();
       setUserBalance(balance);
-      setDraws(activeDraws);
     } catch (error) {
       console.error('Error loading user balance:', error);
     }
@@ -54,13 +49,13 @@ const RewardsScreen = () => {
       if (userBalance < SCRATCH_CARD_COST) {
         Alert.alert(
           'Insufficient Balance',
-          `You need ${SCRATCH_CARD_COST} Digicoins to purchase a scratch card. You currently have ${userBalance.toFixed(2)} Digicoins.`,
+          `You need ${SCRATCH_CARD_COST} Detoxcoins to purchase a scratch card. You currently have ${userBalance.toFixed(2)} Detoxcoins.`,
           [{ text: 'OK' }]
         );
         return false;
       }
 
-      // First, purchase the scratch card (deduct 5 Digicoins)
+      // First, purchase the scratch card (deduct 5 Detoxcoins)
       const purchaseSuccess = await purchaseScratchCard();
       
       if (!purchaseSuccess) {
@@ -77,11 +72,11 @@ const RewardsScreen = () => {
       if (!adResult.success) {
         Alert.alert(
           'Ad Required',
-          'You need to watch the full ad to complete your scratch card purchase. Your 5 Digicoins have been refunded.',
+          'You need to watch the full ad to complete your scratch card purchase. Your 5 Detoxcoins have been refunded.',
           [{ text: 'OK' }]
         );
         
-        // Refund the Digicoins since ad wasn't watched
+        // Refund the Detoxcoins since ad wasn't watched
         setUserBalance(prev => prev + SCRATCH_CARD_COST);
         return false;
       }
@@ -106,21 +101,27 @@ const RewardsScreen = () => {
 
   const handleRewardRevealed = async (reward: ScratchReward) => {
     try {
-      const success = await processReward(reward);
+      // Pass user info for gift card tracking
+      const userInfo = {
+        userId: user?.uid || user?.email || 'unknown',
+        email: user?.email || 'unknown'
+      };
+      
+      const success = await processReward(reward, userInfo);
       
       if (success) {
-        if (reward.type === 'digicoin') {
-          // Update local balance for Digicoins
+        if (reward.type === 'detoxcoin') {
+          // Update local balance for Detoxcoins
           setUserBalance(prev => prev + reward.amount);
           
           Alert.alert(
-            'Congratulations! 🎉',
-            `You won ${reward.displayText}! Your new balance is ${(userBalance + reward.amount).toFixed(2)} Digicoins.`,
+            'Congratulations!',
+            `You won ${reward.displayText}! Your new balance is ${(userBalance + reward.amount).toFixed(2)} Detoxcoins.`,
             [{ text: 'Awesome!' }]
           );
         } else {
           Alert.alert(
-            'Amazing! 🎁',
+            'Amazing!',
             `You won a ${reward.displayText}! The gift card code will be sent to your email within 24 hours.`,
             [{ text: 'Incredible!' }]
           );
@@ -147,7 +148,8 @@ const RewardsScreen = () => {
         <View style={styles.content}>
           <Header />
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Rewards</Text>
+            <Text style={styles.title}>Scratch & Win</Text>
+            <Text style={styles.subtitle}>Try your luck with instant scratch cards</Text>
           </View>
 
           <Text style={styles.sectionTitle}>Scratch Cards</Text>
@@ -164,30 +166,31 @@ const RewardsScreen = () => {
             
             <View style={styles.scratchCardInfo}>
               <Text style={styles.infoText}>
-                Cost: {SCRATCH_CARD_COST} Digicoins + Ad
+                Cost: {SCRATCH_CARD_COST} Detoxcoins + Ad
               </Text>
               <Text style={styles.infoText}>
-                Your Balance: {userBalance.toFixed(2)} Digicoins
+                Your Balance: {userBalance.toFixed(2)} Detoxcoins
               </Text>
               <Text style={styles.infoSubtext}>
-                Pay {SCRATCH_CARD_COST} Digicoins and watch an ad to play • Win Digicoins or Amazon Gift Cards up to $20!
+                Pay {SCRATCH_CARD_COST} Detoxcoins and watch an ad to play • Win Detoxcoins or Amazon Gift Cards up to $20!
               </Text>
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Prize Draws</Text>
-          
-          <View style={styles.drawsContainer}>
-            {draws.map((draw) => (
-              <MinimalDrawCard
-                key={draw.id}
-                draw={draw}
-                onRefresh={loadUserBalance}
-              />
-            ))}
-            {draws.length === 0 && (
-              <Text style={styles.noDrawsText}>No active draws available</Text>
-            )}
+          {/* Coming Soon Section for Other Rewards */}
+          <View style={styles.comingSoonSection}>
+            <Text style={styles.sectionTitle}>More Rewards Coming Soon!</Text>
+            <View style={styles.comingSoonCard}>
+              <Text style={styles.comingSoonText}>
+                Prize Draws{'\n'}
+                Tournament Rewards{'\n'}
+                Special Events{'\n'}
+                Exclusive Offers
+              </Text>
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+              </View>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -216,6 +219,13 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   sectionTitle: {
@@ -245,15 +255,37 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontStyle: 'italic',
   },
-  drawsContainer: {
+  comingSoonSection: {
     marginHorizontal: spacing.md,
+    marginTop: spacing.xl,
   },
-  noDrawsText: {
+  comingSoonCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  comingSoonText: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    padding: spacing.lg,
-    fontStyle: 'italic',
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.round,
+  },
+  comingSoonBadgeText: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 12,
   },
 
 });

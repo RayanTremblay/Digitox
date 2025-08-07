@@ -21,7 +21,7 @@ const AuthTest = () => {
       console.log('DB:', db);
       
       if (!auth) {
-        setResult('❌ Auth is null/undefined');
+        setResult('Auth is null/undefined');
         setLoading(false);
         return;
       }
@@ -34,14 +34,14 @@ const AuthTest = () => {
       console.log('Auth result:', authResult);
       
       if (authResult.success && authResult.user) {
-        setResult(`✅ Success! User: ${authResult.user.email}`);
+        setResult(`Success! User: ${authResult.user.email}`);
       } else {
-        setResult(`❌ Error: ${authResult.error}`);
+        setResult(`Error: ${authResult.error}`);
       }
       
     } catch (error: any) {
       console.error('Test error:', error);
-      setResult(`❌ Exception: ${error.message}`);
+      setResult(`Exception: ${error.message}`);
     }
     
     setLoading(false);

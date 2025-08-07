@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 export interface ScratchReward {
-  type: 'digicoin' | 'amazon';
+  type: 'detoxcoin' | 'amazon';
   amount: number;
   displayText: string;
 }
@@ -44,12 +44,12 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
 
   const SCRATCH_CARD_COST = 5;
 
-  // Generate reward with updated odds (1 in 1500 for gift cards)
+  // Generate reward with updated odds (1 in 3000 for gift cards)
   const generateReward = (): ScratchReward => {
     const random = Math.random();
     
-    // 1 in 1500 chance for Amazon gift cards (0.067% chance)
-    if (random < (1 / 1500)) {
+    // 1 in 3000 chance for Amazon gift cards (0.033% chance)
+    if (random < (1 / 3000)) {
       const amounts = [5, 10, 15, 20];
       const amount = amounts[Math.floor(Math.random() * amounts.length)];
       return {
@@ -58,14 +58,14 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
         displayText: `$${amount} Amazon Gift Card`
       };
     }
-    // Everything else is Digicoins (99.933% chance)
+    // Everything else is Detoxcoins (99.967% chance)
     else {
       const amounts = [1, 2, 3, 5, 8, 10];
       const amount = amounts[Math.floor(Math.random() * amounts.length)];
       return {
-        type: 'digicoin',
+        type: 'detoxcoin',
         amount,
-        displayText: `${amount} Digicoins`
+        displayText: `${amount} Detoxcoins`
       };
     }
   };
@@ -168,15 +168,15 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
       case 'scratching':
         return 'Scratching...';
       default:
-        return userBalance < SCRATCH_CARD_COST ? 'Insufficient Balance' : 'Pay 5 Digicoins & Watch Ad';
+        return userBalance < SCRATCH_CARD_COST ? 'Insufficient Balance' : 'Pay 5 Detoxcoins & Watch Ad';
     }
   };
 
   const getSubText = () => {
     if (userBalance < SCRATCH_CARD_COST) {
-      return `Need ${SCRATCH_CARD_COST - userBalance} more Digicoins`;
+      return `Need ${SCRATCH_CARD_COST - userBalance} more Detoxcoins`;
     }
-    return '5 Digicoins + Ad Required';
+    return '5 Detoxcoins + Ad Required';
   };
 
   const renderScratchSurface = () => (
@@ -235,18 +235,18 @@ const ScratchCard: React.FC<ScratchCardProps> = ({
         ]}
       >
         <LinearGradient
-          colors={reward.type === 'digicoin' ? ['#1D2024', '#6E7A8A'] : ['#FF6B35', '#F7931E']}
+          colors={reward.type === 'detoxcoin' ? ['#1D2024', '#6E7A8A'] : ['#FF6B35', '#F7931E']}
           style={styles.rewardGradient}
         >
           <View style={styles.rewardContent}>
-            {reward.type === 'digicoin' ? (
+            {reward.type === 'detoxcoin' ? (
               <Image
                 source={require('../assets/logo.png')}
                 style={styles.rewardLogo}
                 resizeMode="contain"
               />
             ) : (
-              <Text style={styles.giftIcon}>🎁</Text>
+                              <Text style={styles.giftIcon}>GIFT</Text>
             )}
             <Text style={styles.rewardTitle}>You Won!</Text>
             <Text style={styles.rewardAmount}>{reward.displayText}</Text>

@@ -5,7 +5,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import StatsModal from './StatsModal';
-import { getDigiStats } from '../utils/storage';
+import { getDetoxStats } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserData } from '../../firebase/firestore';
 import { generateInitials, generateInitialsFromDisplayName, generateInitialsFromEmail } from '../utils/userUtils';
@@ -43,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
   );
 
   const loadStats = async () => {
-    const currentStats = await getDigiStats();
+    const currentStats = await getDetoxStats();
     setStats(currentStats);
   };
 

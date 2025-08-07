@@ -14,7 +14,7 @@ const AdTest = () => {
     mobileAds()
       .initialize()
       .then(adapterStatuses => {
-        console.log('✅ Google Mobile Ads SDK initialized successfully');
+        console.log('Google Mobile Ads SDK initialized successfully');
         console.log('Adapter statuses:', adapterStatuses);
         setSdkInitialized(true);
         
@@ -22,7 +22,7 @@ const AdTest = () => {
         checkAdManagerStatus();
       })
       .catch(error => {
-        console.error('❌ Google Mobile Ads SDK initialization failed:', error);
+        console.error('Google Mobile Ads SDK initialization failed:', error);
         setSdkInitialized(false);
       });
 
@@ -47,7 +47,7 @@ const AdTest = () => {
     setLoading(true);
     
     try {
-      console.log('🎬 Testing rewarded ad...');
+      console.log('Testing rewarded ad...');
       
       // Check if ad manager is initialized
       if (!adManager.getInitializationStatus()) {
@@ -61,14 +61,14 @@ const AdTest = () => {
       
       if (result.success) {
         Alert.alert(
-          'Success! 🎉', 
+          'Success!', 
           `Ad watched successfully!\nReward: ${result.reward?.amount || 0} ${result.reward?.type || 'points'}`
         );
       } else {
         Alert.alert('Failed', 'Ad failed to show. Check console for details.');
       }
     } catch (error: any) {
-      console.error('❌ Ad test error:', error);
+      console.error('Ad test error:', error);
       Alert.alert('Error', `Ad test failed: ${error.message}`);
     }
     
@@ -77,18 +77,18 @@ const AdTest = () => {
 
   const preloadAd = async () => {
     try {
-      console.log('🔄 Preloading ad...');
+      console.log('Preloading ad...');
       await adManager.preloadAd();
       checkAdManagerStatus();
       Alert.alert('Success', 'Ad preloaded successfully!');
     } catch (error: any) {
-      console.error('❌ Preload error:', error);
+      console.error('Preload error:', error);
       Alert.alert('Error', `Preload failed: ${error.message}`);
     }
   };
 
   const getStatusColor = (status: boolean) => status ? '#4CAF50' : '#F44336';
-  const getStatusText = (status: boolean) => status ? '✅ Ready' : '❌ Not Ready';
+  const getStatusText = (status: boolean) => status ? 'Ready' : 'Not Ready';
 
   return (
     <View style={styles.container}>

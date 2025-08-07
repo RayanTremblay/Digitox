@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Digitox",
-    "slug": "Digitox",
+    "name": "Detoxly",
+    "slug": "Detoxly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,14 +17,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.digitox.app"
+      "bundleIdentifier": "com.detoxly.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1D2024"
       },
-      "package": "com.digitox.app",
+      "package": "com.detoxly.app",
       "edgeToEdgeEnabled": true
     },
     "web": {
