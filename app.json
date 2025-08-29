@@ -32,7 +32,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
+        "projectId": "7e55e60d-9264-49da-94a3-ad8d46f59d03"
       }
     },
     "plugins": [
@@ -57,13 +57,16 @@
         {
           "icon": "./assets/icon.png",
           "color": "#6E7A8A",
-          "sounds": ["./assets/notification-sound.wav"]
+          "sounds": [
+            "./assets/notification-sound.wav"
+          ]
         }
       ]
     ],
     "notification": {
       "icon": "./assets/icon.png",
       "color": "#6E7A8A"
-    }
+    },
+    "owner": "rayantremblay"
   }
 }
