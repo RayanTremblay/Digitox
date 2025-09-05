@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../../firebase/firebaseConfig.ts';
+import { auth } from '../../firebase/firebaseConfig';
+import { syncService } from '../services/syncService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthContextType {
@@ -49,11 +50,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (user) {
         // User logged in - sync their data
-        console.log('🔄 User logged in, syncing data...');
+        // User logged in, syncing data
         try {
           const syncResult = await syncService.syncUserData();
           if (syncResult.success) {
-            console.log('Initial data sync completed');
+            // Initial data sync completed
           } else {
             console.warn('Initial sync failed:', syncResult.error);
           }
@@ -75,8 +76,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user) {
       syncInterval = setInterval(async () => {
         if (syncService.shouldAutoSync()) {
-          console.log('🔄 Auto-syncing user data...');
-          await syncService.syncUserData();
+          try {
+            const result = await syncService.syncUserData();
+            if (!result.success && !result.error?.includes('offline')) {
+              console.warn('Auto-sync failed:', result.error);
+            }
+          } catch (error) {
+            console.warn('Auto-sync error:', error);
+          }
         }
       }, 5 * 60 * 1000); // 5 minutes
     }

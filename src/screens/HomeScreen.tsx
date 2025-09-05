@@ -58,10 +58,7 @@ const HomeScreen = () => {
     const now = new Date();
     const today = now.getDay(); // Get current day (0 = Sunday, 1 = Monday, etc.)
     
-    console.log('Current Date:', now.toISOString()); 
-    console.log('Current day of week:', today);
-    console.log('Current day name:', days[today]); 
-    console.log('Week progress data:', weekProgress); 
+        // Debug logs removed for production 
     
     // Map the days to display format
     const weekData = days.map((day, index) => {
@@ -71,7 +68,7 @@ const HomeScreen = () => {
       // If it's today, use the most up-to-date time value
       const timeValue = index === today ? timeSpent : dayProgress;
       
-      console.log(`Day ${day} progress:`, timeValue); 
+      // Debug log removed 
       return { day, timeSpent: timeValue };
     });
     
@@ -104,21 +101,21 @@ const HomeScreen = () => {
     
     // Load daily stats
     const stats = await getDetoxStats();
-    console.log('Stats from getDetoxStats:', stats); // Debug log
+    // Debug log removed
     
     // Convert seconds to minutes for display
     const minutes = Math.floor(stats.dailyTimeSaved / 60);
-    console.log('Converted minutes:', minutes); // Debug log
+    // Debug log removed
     setTimeSpent(minutes);
     
     // Update boost multiplier using new logic (considers both ad boost and time boost)
     const boostResult = await shouldApplyBoostMultiplier(minutes);
     setBoostMultiplier(boostResult.multiplier);
-    console.log('Boost multiplier:', boostResult.multiplier, 'Reason:', boostResult.reason);
+    // Debug log removed
     
     // Load weekly progress
     const progress = await getWeeklyProgress();
-    console.log('Weekly progress:', progress); // Debug log
+    // Debug log removed
     setWeekProgress(progress);
   };
 
@@ -787,7 +784,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   boostActive: {
-    color: '#4CAF50',
+    color: colors.text,
   },
   boostHint: {
     ...typography.caption,

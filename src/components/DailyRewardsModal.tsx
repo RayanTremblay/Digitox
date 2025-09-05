@@ -140,10 +140,9 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
 
             {/* Progress Card */}
             <LinearGradient
-              colors={['#4A90B2', '#2A5470']}
+              colors={['#6C63FF', '#5A52E5']}
               style={styles.progressCard}
             >
-              <Text style={styles.progressTitle}>Today's Progress</Text>
               <Text style={styles.progressText}>
                 {stats.claimsToday} / {stats.maxClaims} rewards claimed
               </Text>
@@ -304,11 +303,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
-  },
-  progressTitle: {
-    ...typography.h3,
-    color: '#fff',
-    marginBottom: spacing.sm,
   },
   progressText: {
     ...typography.h1,

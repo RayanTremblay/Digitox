@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -66,6 +67,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -217,7 +220,7 @@ class NotificationService {
               body: message,
               sound: true,
             },
-            trigger: timeSlot,
+            trigger: { type: SchedulableTriggerInputTypes.DATE, date: timeSlot },
           });
         }
       }

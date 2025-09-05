@@ -173,10 +173,10 @@ const DetoxScreen = () => {
   };
 
   const handleStartDetox = (duration: number | string) => {
-    console.log('Selected duration:', duration, typeof duration);
+    // Debug log removed
     
     if (duration === 'custom') {
-      console.log('Opening custom duration modal');
+      // Debug log removed
       setShowDurationModal(false);
       setTimeout(() => {
         setShowCustomDurationModal(true);
@@ -546,7 +546,7 @@ const DetoxScreen = () => {
                 <TouchableOpacity
                   style={[styles.customDurationButton, styles.cancelButton]}
                   onPress={() => {
-                    console.log('Cancelling custom duration');
+                    // Debug log removed
                     setShowCustomDurationModal(false);
                     navigation.navigate('MainTabs');
                   }}
@@ -557,7 +557,7 @@ const DetoxScreen = () => {
                 <TouchableOpacity
                   style={[styles.customDurationButton, styles.customConfirmButton]}
                   onPress={() => {
-                    console.log('Confirming custom duration');
+                    // Debug log removed
                     handleCustomDurationConfirm();
                   }}
                 >

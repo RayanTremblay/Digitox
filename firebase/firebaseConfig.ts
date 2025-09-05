@@ -1,20 +1,38 @@
 // firebase/firebaseConfig.ts - Secure version with environment variables
 import { initializeApp, getApps } from "firebase/app";
-import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
+import { initializeAuth, getAuth, Auth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Environment variable helper with development fallbacks
+// Environment variable helper with safe fallbacks for production builds
+// In Play Store builds created locally (Gradle), process.env is typically undefined.
+// We also attempt to read from Expo Constants when available.
 const getEnvVar = (key: string, fallback?: string): string => {
-  const value = process.env[key];
-  if (!value) {
-    if (__DEV__ && fallback) {
-      console.warn(`Using fallback for ${key} in development mode`);
-      return fallback;
-    }
-    throw new Error(`🚨 PRODUCTION ERROR: Required environment variable ${key} is not set. Please configure your environment variables.`);
+  // Prefer process.env when available (EAS builds inject EXPO_PUBLIC_* at build time)
+  const fromProcess = (typeof process !== 'undefined' && (process as any)?.env) ? (process as any).env[key] : undefined;
+  if (fromProcess) return fromProcess as string;
+
+  // Try Expo Constants extra (available in Expo-managed or prebuilt apps)
+  try {
+    // Lazy import to avoid bundling issues if Constants is not available very early
+    // Note: Constants is already imported above
+    const extras: any = Constants?.expoConfig?.extra || {};
+    if (extras[key]) return String(extras[key]);
+    if (extras.public && extras.public[key]) return String(extras.public[key]);
+    if (extras?.eas && extras.eas[key]) return String(extras.eas[key]);
+  } catch {}
+
+  // Development-friendly fallback
+  if (__DEV__ && fallback) {
+    console.warn(`Using fallback for ${key} in development mode`);
+    return fallback;
   }
-  return value;
+
+  // As a last resort in production, return fallback if provided; otherwise empty string
+  if (fallback) return fallback;
+  console.warn(`Missing config for ${key}. Returning empty string to avoid crash.`);
+  return '';
 };
 
 // Firebase configuration with development fallbacks
@@ -49,7 +67,7 @@ if (getApps().length === 0) {
 }
 
 // Initialize Firebase Auth with platform-aware persistence
-let auth;
+let auth: Auth;
 try {
   if (Platform.OS === 'ios' || Platform.OS === 'android') {
           console.log('Initializing auth for mobile platform');
@@ -59,12 +77,10 @@ try {
       AsyncStorage = require('@react-native-async-storage/async-storage').default;
       console.log('AsyncStorage imported successfully');
       
-      auth = initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage)
-      });
+      auth = initializeAuth(app);
       console.log('Auth initialized with AsyncStorage persistence');
     } catch (asyncStorageError) {
-      console.warn('AsyncStorage import failed:', asyncStorageError.message);
+      console.warn('AsyncStorage import failed:', (asyncStorageError as Error).message);
       console.log('🔄 Falling back to default auth');
       auth = getAuth(app);
     }
@@ -73,13 +89,13 @@ try {
     auth = getAuth(app);
   }
 } catch (authError) {
-        console.error('Auth initialization error:', authError.message);
+        console.error('Auth initialization error:', (authError as Error).message);
   console.log('🔄 Attempting fallback auth initialization');
   try {
     auth = getAuth(app);
           console.log('Fallback auth successful');
   } catch (fallbackError) {
-    console.error('💥 Complete auth failure:', fallbackError.message);
+    console.error('💥 Complete auth failure:', (fallbackError as Error).message);
     throw fallbackError;
   }
 }

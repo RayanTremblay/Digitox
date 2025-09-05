@@ -43,7 +43,7 @@ const MarketScreen = () => {
 
   const handlePurchaseScratchCard = async (): Promise<boolean> => {
     try {
-      const success = await purchaseScratchCard(SCRATCH_CARD_COST);
+      const success = await purchaseScratchCard();
       if (success) {
         await loadUserBalance();
         setScratchCardKey(prev => prev + 1);
@@ -110,10 +110,10 @@ const MarketScreen = () => {
             
             <ScratchCard
               key={scratchCardKey}
-              cost={SCRATCH_CARD_COST}
               userBalance={userBalance}
-              onPurchase={handlePurchaseScratchCard}
-              onReward={handleScratchReward}
+              onRewardRevealed={handleScratchReward}
+              onPurchaseAndWatchAd={handlePurchaseScratchCard}
+              onReplay={() => setScratchCardKey(prev => prev + 1)}
             />
           </View>
 

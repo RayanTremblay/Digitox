@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Animated,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { AuthStackParamList } from '../types/navigation';
+import logo from '../assets/logo.png';
 
 type OnboardingNavigationProp = StackNavigationProp<AuthStackParamList, 'Onboarding'>;
 
@@ -25,8 +27,9 @@ interface OnboardingSlide {
   id: number;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
   color: string;
+  useLogo?: boolean;
 }
 
 const slides: OnboardingSlide[] = [
@@ -41,22 +44,22 @@ const slides: OnboardingSlide[] = [
     id: 2,
     title: 'Earn Detoxcoins',
     description: 'Complete detox sessions and daily challenges to earn Detoxcoins that you can spend in our marketplace.',
-    icon: 'logo-bitcoin',
     color: '#4CAF50',
+    useLogo: true,
   },
   {
     id: 3,
     title: 'Redeem Rewards',
     description: 'Exchange your Detoxcoins for real rewards like Amazon gift cards, gadgets, and wellness products.',
     icon: 'gift',
-    color: '#FF6B6B',
+    color: '#6C63FF',
   },
   {
     id: 4,
     title: 'Track Progress',
     description: 'Monitor your digital wellness journey with detailed stats, streaks, and achievements.',
     icon: 'stats-chart',
-    color: '#FF9500',
+    color: '#6C63FF',
   },
 ];
 
@@ -91,7 +94,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
       if (onComplete) {
         onComplete();
       } else {
-        navigation.navigate('Login');
+        navigation.navigate('Login', { onAuthSuccess: () => {} });
       }
     }
   };
@@ -122,16 +125,20 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     if (onComplete) {
       onComplete();
     } else {
-      navigation.navigate('Login');
+      navigation.navigate('Login', { onAuthSuccess: () => {} });
     }
   };
 
   const renderSlide = (slide: OnboardingSlide, index: number) => (
     <View key={slide.id} style={[styles.slide, { width }]}>
       <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}>
-        <View style={[styles.iconContainer, { backgroundColor: slide.color }]}>
-          <Ionicons name={slide.icon} size={60} color="#FFFFFF" />
-        </View>
+        {slide.useLogo ? (
+          <Image source={logo} style={styles.logoContainer} resizeMode="contain" />
+        ) : (
+          <View style={[styles.iconContainer, { backgroundColor: slide.color }]}>
+            <Ionicons name={slide.icon!} size={60} color="#FFFFFF" />
+          </View>
+        )}
         
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={styles.description}>{slide.description}</Text>
@@ -245,6 +252,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  logoContainer: {
+    width: 120,
+    height: 120,
+    marginBottom: spacing.xl,
+  },
   title: {
     ...typography.h1,
     color: colors.text,
@@ -268,7 +280,6 @@ const styles = StyleSheet.create({
   dot: {
     height: 8,
     borderRadius: 4,
-    transition: 'all 0.3s ease',
   },
   buttonContainer: {
     flexDirection: 'row',

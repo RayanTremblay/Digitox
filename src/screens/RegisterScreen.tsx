@@ -16,6 +16,7 @@ import { registerUser } from '../../firebase/auth';
 import { setUserData } from '../../firebase/firestore';
 import ErrorHandler from '../utils/errorHandler';
 import LoadingSpinner from '../components/LoadingSpinner';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -128,7 +129,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
       
       if (result.success && result.user) {
         // Save user profile data
-        await setUserData(result.user.uid, {
+        const profileData = {
           email: formData.email,
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -136,7 +137,19 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
           createdAt: new Date().toISOString(),
           agreedToTerms: true,
           agreedAt: new Date().toISOString(),
-        });
+        };
+        
+        console.log('RegisterScreen: Saving profile data to Firebase:', profileData);
+        const saveResult = await setUserData(result.user.uid, profileData);
+        console.log('RegisterScreen: Save result:', saveResult);
+        
+        // Also save to local storage immediately
+        try {
+          await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+          console.log('RegisterScreen: Profile data saved to local storage');
+        } catch (localError) {
+          console.error('RegisterScreen: Error saving to local storage:', localError);
+        }
         
         onAuthSuccess();
         return result;

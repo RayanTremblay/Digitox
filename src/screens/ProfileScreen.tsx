@@ -12,6 +12,7 @@ import { logoutUser } from '../../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../types/navigation';
 import notificationService, { NotificationSettings } from '../services/notificationService';
+import { syncService } from '../services/syncService';
 
 // Storage key for daily goal
 const DAILY_GOAL_KEY = '@detoxly_daily_goal';
@@ -20,11 +21,10 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { user, syncUserData, backupData, restoreData } = useAuth();
+  const { user } = useAuth();
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
     frequency: 'medium',
@@ -41,10 +41,26 @@ const ProfileScreen = () => {
   });
   const [dailyGoal, setDailyGoal] = useState(120); // Default 120 minutes
   const [newGoalValue, setNewGoalValue] = useState('');
+  const [userProfile, setUserProfile] = useState<{
+    firstName: string;
+    lastName: string;
+    displayName: string;
+  }>({
+    firstName: '',
+    lastName: '',
+    displayName: '',
+  });
 
   // Load real data from storage
   useEffect(() => {
     const loadData = async () => {
+      // First try to sync user data to get the latest profile info
+      try {
+        await syncService.syncUserData(true); // Force sync
+      } catch (error) {
+        console.log('Sync failed, using local data:', error);
+      }
+
       const stats = await getDetoxStats();
       const updatedStreak = await updateStreak();
       const savedGoal = await AsyncStorage.getItem(DAILY_GOAL_KEY);
@@ -65,6 +81,84 @@ const ProfileScreen = () => {
       // Load notification settings
       const currentNotificationSettings = notificationService.getSettings();
       setNotificationSettings(currentNotificationSettings);
+
+      // Load user profile data
+      try {
+        // First check local storage for existing profile data
+        const profileData = await AsyncStorage.getItem('userProfile');
+        console.log('Profile data from local storage:', profileData);
+        
+        if (profileData) {
+          const profile = JSON.parse(profileData);
+          console.log('Parsed local profile:', profile);
+          
+          // Check if we have valid first and last name
+          if (profile.firstName && profile.lastName && profile.firstName !== 'null' && profile.lastName !== 'null') {
+            console.log('Using valid local profile data:', profile);
+            setUserProfile({
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              displayName: profile.displayName || `${profile.firstName} ${profile.lastName}`,
+            });
+          } else {
+            console.log('Local profile data is invalid, trying Firebase...');
+            // Try to get fresh data from Firebase
+            await loadProfileFromFirebase();
+          }
+        } else {
+          console.log('No local profile data, trying Firebase...');
+          // Try to get fresh data from Firebase
+          await loadProfileFromFirebase();
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    };
+
+    // Helper function to load profile from Firebase
+    const loadProfileFromFirebase = async () => {
+      try {
+        console.log('Getting fresh profile data from Firebase...');
+        const authProfile = await syncService.getUserProfileFromAuth();
+        console.log('Firebase auth profile result:', authProfile);
+        
+        if (authProfile && authProfile.firstName && authProfile.lastName) {
+          console.log('Got valid profile from Firebase:', authProfile);
+          setUserProfile(authProfile);
+          // Save it locally for next time
+          await AsyncStorage.setItem('userProfile', JSON.stringify(authProfile));
+          console.log('Profile data saved to local storage');
+        } else {
+          console.log('No valid profile data from Firebase, using email-based fallback');
+          // Create a basic profile from the user's email
+          if (user?.email) {
+            const emailName = user.email.split('@')[0];
+            const emailProfile = {
+              firstName: emailName,
+              lastName: '',
+              displayName: emailName,
+            };
+            console.log('Created email-based profile:', emailProfile);
+            setUserProfile(emailProfile);
+            await AsyncStorage.setItem('userProfile', JSON.stringify(emailProfile));
+          }
+        }
+      } catch (firebaseError) {
+        console.error('Error getting profile from Firebase:', firebaseError);
+        console.log('Using email-based fallback due to Firebase error');
+        // Create a basic profile from the user's email
+        if (user?.email) {
+          const emailName = user.email.split('@')[0];
+          const emailProfile = {
+            firstName: emailName,
+            lastName: '',
+            displayName: emailName,
+          };
+          console.log('Created email-based profile as fallback:', emailProfile);
+          setUserProfile(emailProfile);
+          await AsyncStorage.setItem('userProfile', JSON.stringify(emailProfile));
+        }
+      }
     };
     
     loadData();
@@ -122,92 +216,6 @@ const ProfileScreen = () => {
     );
   };
 
-  const handleSyncData = async () => {
-    if (isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      const result = await syncUserData();
-      if (result.success) {
-        Alert.alert('Success', 'Your data has been synchronized successfully!');
-        // Reload local data
-        const stats = await getDetoxStats();
-        const updatedStreak = await updateStreak();
-        setUserStats({
-          currentBalance: stats.balance,
-          totalEarned: stats.totalEarned,
-          totalTimeSaved: stats.totalTimeSaved,
-          currentStreak: updatedStreak,
-          todayDetoxTime: stats.todayDetoxTime,
-        });
-      } else {
-        Alert.alert('Sync Failed', result.error || 'Failed to sync data');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleBackupData = async () => {
-    if (isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      const result = await backupData();
-      if (result.success) {
-        Alert.alert('Success', 'Your data has been backed up to the cloud!');
-      } else {
-        Alert.alert('Backup Failed', result.error || 'Failed to backup data');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleRestoreData = async () => {
-    if (isSyncing) return;
-    
-    Alert.alert(
-      'Restore Data',
-      'This will overwrite your local data with data from the cloud. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          style: 'destructive',
-          onPress: async () => {
-            setIsSyncing(true);
-            try {
-              const result = await restoreData();
-              if (result.success) {
-                Alert.alert('Success', 'Your data has been restored from the cloud!');
-                // Reload local data
-                const stats = await getDetoxStats();
-                const updatedStreak = await updateStreak();
-                setUserStats({
-                  currentBalance: stats.balance,
-                  totalEarned: stats.totalEarned,
-                  totalTimeSaved: stats.totalTimeSaved,
-                  currentStreak: updatedStreak,
-                  todayDetoxTime: stats.todayDetoxTime,
-                });
-              } else {
-                Alert.alert('Restore Failed', result.error || 'Failed to restore data');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'An unexpected error occurred');
-            } finally {
-              setIsSyncing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleUpdateNotificationSettings = async (updates: Partial<NotificationSettings>) => {
     try {
@@ -236,6 +244,8 @@ const ProfileScreen = () => {
       Alert.alert('Error', 'Failed to send test notification');
     }
   };
+
+
 
   // Calculate daily progress
   const dailyProgress = Math.min(
@@ -282,17 +292,25 @@ const ProfileScreen = () => {
           <View style={styles.profileSection}>
             <View style={styles.profileImageContainer}>
               <Text style={styles.profileImageText}>
-                {user?.displayName 
-                  ? user.displayName.split(' ').map(name => name[0]).join('').toUpperCase()
-                  : user?.email?.[0]?.toUpperCase() || 'U'
+                {userProfile.firstName && userProfile.lastName
+                  ? `${userProfile.firstName[0]}${userProfile.lastName[0]}`.toUpperCase()
+                  : userProfile.displayName
+                    ? userProfile.displayName.split(' ').map(name => name[0]).join('').toUpperCase()
+                    : user?.displayName 
+                      ? user.displayName.split(' ').map(name => name[0]).join('').toUpperCase()
+                      : user?.email?.[0]?.toUpperCase() || 'U'
                 }
               </Text>
             </View>
             <Text style={styles.profileName}>
-              {user?.displayName || user?.email?.split('@')[0] || 'User'}
+              {userProfile.firstName && userProfile.lastName 
+                ? `${userProfile.firstName} ${userProfile.lastName}`
+                : userProfile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'
+              }
             </Text>
             <Text style={styles.profileEmail}>{user?.email || 'No email'}</Text>
           </View>
+
 
           <Text style={styles.sectionTitle}>Statistics</Text>
           <View style={styles.statsContainer}>
@@ -344,39 +362,6 @@ const ProfileScreen = () => {
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Data Management</Text>
-          <View style={styles.settingsContainer}>
-            <TouchableOpacity 
-              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
-              onPress={handleSyncData}
-              disabled={isSyncing}
-            >
-              <Text style={styles.settingText}>
-                {isSyncing ? 'Syncing...' : 'Sync Data'}
-              </Text>
-              <Ionicons name="sync" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
-              onPress={handleBackupData}
-              disabled={isSyncing}
-            >
-              <Text style={styles.settingText}>
-                {isSyncing ? 'Processing...' : 'Backup to Cloud'}
-              </Text>
-              <Ionicons name="cloud-upload" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.settingButton, isSyncing && styles.settingButtonDisabled]}
-              onPress={handleRestoreData}
-              disabled={isSyncing}
-            >
-              <Text style={styles.settingText}>
-                {isSyncing ? 'Processing...' : 'Restore from Cloud'}
-              </Text>
-              <Ionicons name="cloud-download" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
 
           <Text style={styles.sectionTitle}>Notification Settings</Text>
           <View style={styles.settingsContainer}>
@@ -397,7 +382,7 @@ const ProfileScreen = () => {
               onPress={handleTestNotification}
             >
               <Text style={styles.settingText}>Test Notification</Text>
-              <Ionicons name="notifications" size={16} color={colors.textSecondary} />
+              <Ionicons name="notifications" size={16} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -672,7 +657,7 @@ const styles = StyleSheet.create({
   },
   profileEmail: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
   },
   sectionTitle: {
     ...typography.h3,
@@ -705,7 +690,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.text,
     textAlign: 'center',
   },
   goalsHeader: {
@@ -736,7 +721,7 @@ const styles = StyleSheet.create({
   },
   goalProgress: {
     ...typography.body,
-    color: colors.primary,
+    color: colors.text,
     fontWeight: '600',
   },
   progressBar: {
@@ -771,7 +756,7 @@ const styles = StyleSheet.create({
   },
   settingArrow: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
   },
   logoutButton: {
     backgroundColor: '#FF4444',
@@ -841,9 +826,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  settingButtonDisabled: {
-    opacity: 0.5,
-  },
   settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -851,7 +833,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
     fontSize: 14,
   },
   // Notification Settings Modal Styles
@@ -908,7 +890,7 @@ const styles = StyleSheet.create({
   },
   frequencyButtonText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
     fontSize: 14,
   },
   frequencyButtonTextActive: {
@@ -929,7 +911,7 @@ const styles = StyleSheet.create({
   },
   styleButtonText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
     fontSize: 14,
   },
   styleButtonTextActive: {
@@ -941,7 +923,7 @@ const styles = StyleSheet.create({
   },
   previewText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.text,
     fontStyle: 'italic',
     backgroundColor: colors.background,
     padding: spacing.md,
@@ -955,7 +937,7 @@ const styles = StyleSheet.create({
   },
   quietHoursDescription: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.text,
     marginTop: spacing.xs,
   },
 });

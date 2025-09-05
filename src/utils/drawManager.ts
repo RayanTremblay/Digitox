@@ -624,7 +624,7 @@ export const getRarityColor = (rarity: DrawEntry['rarity']): string => {
 };
 
 // Get category icon
-export const getCategoryIcon = (category: DrawEntry['category']): string => {
+export const getCategoryIcon = (category: DrawEntry['category']): any => {
   switch (category) {
     case 'tech': return 'laptop-outline';
     case 'gaming': return 'game-controller-outline';

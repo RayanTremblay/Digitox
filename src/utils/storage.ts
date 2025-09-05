@@ -140,8 +140,8 @@ export const getDetoxStats = async (): Promise<DetoxStats> => {
     }
 
     const [balance, totalEarned, totalTime, dailyTime, currentStreak, todayDetoxTime] = await Promise.all([
-      AsyncStorage.getItem(STORAGE_KEYS.BALANCE),
-      AsyncStorage.getItem(STORAGE_KEYS.TOTAL_EARNED),
+      getDetoxcoinsBalance(), // Use new Detoxcoins balance system
+      getTotalDetoxcoinsEarned(), // Use new Detoxcoins total earned system
       AsyncStorage.getItem(STORAGE_KEYS.TOTAL_TIME),
       AsyncStorage.getItem(STORAGE_KEYS.DAILY_TIME),
       AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STREAK),
@@ -149,8 +149,8 @@ export const getDetoxStats = async (): Promise<DetoxStats> => {
     ]);
 
     return {
-      balance: balance ? parseFloat(balance) : 0,
-      totalEarned: totalEarned ? parseFloat(totalEarned) : 0,
+      balance: balance,
+      totalEarned: totalEarned,
       totalTimeSaved: totalTime ? parseInt(totalTime) : 0,
       dailyTimeSaved: dailyTime ? parseInt(dailyTime) : 0,
       currentStreak: currentStreak ? parseInt(currentStreak) : 0,
@@ -236,10 +236,13 @@ export const updateDetoxStats = async (earnedAmount: number, timeSpent: number) 
       await resetDailyStats();
     }
 
+    // Add Detoxcoins using the new system
+    await addDetoxcoins(earnedAmount);
+
     const currentStats = await getDetoxStats();
     const newStats: DetoxStats = {
-      balance: currentStats.balance + earnedAmount,
-      totalEarned: currentStats.totalEarned + earnedAmount,
+      balance: currentStats.balance, // Already updated by addDetoxcoins
+      totalEarned: currentStats.totalEarned, // Already updated by addDetoxcoins
       totalTimeSaved: currentStats.totalTimeSaved + timeSpent,
       dailyTimeSaved: currentStats.dailyTimeSaved + timeSpent,
       currentStreak: currentStats.currentStreak,
@@ -247,8 +250,6 @@ export const updateDetoxStats = async (earnedAmount: number, timeSpent: number) 
     };
 
     await Promise.all([
-      AsyncStorage.setItem(STORAGE_KEYS.BALANCE, newStats.balance.toString()),
-      AsyncStorage.setItem(STORAGE_KEYS.TOTAL_EARNED, newStats.totalEarned.toString()),
       AsyncStorage.setItem(STORAGE_KEYS.TOTAL_TIME, newStats.totalTimeSaved.toString()),
       AsyncStorage.setItem(STORAGE_KEYS.DAILY_TIME, newStats.dailyTimeSaved.toString()),
     ]);

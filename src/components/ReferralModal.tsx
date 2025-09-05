@@ -101,26 +101,6 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
     }
   };
 
-  // For testing - simulate someone clicking link
-  const handleTestReferral = async () => {
-    try {
-      const success = await simulateLinkClick();
-      if (success) {
-        await loadReferralStats();
-        onReferralComplete?.(); // Update parent component's balance
-        Alert.alert(
-          'Test Successful!',
-          `Simulated someone clicking your link! You earned ${REFERRAL_REWARD} Detoxcoins.`,
-          [{ text: 'Awesome!' }]
-        );
-      } else {
-        Alert.alert('Test Failed', 'Could not simulate link click.');
-      }
-    } catch (error) {
-      console.error('Error testing referral:', error);
-      Alert.alert('Error', 'Failed to test referral.');
-    }
-  };
 
   return (
     <Modal
@@ -142,7 +122,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
 
             {/* Reward Info */}
             <LinearGradient
-              colors={['#2A5470', '#4A90B2']}
+              colors={['#6C63FF', '#5A52E5']}
               style={styles.rewardCard}
             >
               <View style={styles.rewardHeader}>
@@ -249,17 +229,6 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
               </View>
             </View>
 
-            {/* Test Button (Development) */}
-            {__DEV__ && (
-              <TouchableOpacity
-                style={styles.testButton}
-                onPress={handleTestReferral}
-              >
-                <Text style={styles.testButtonText}>
-                  Test Link Click (Dev Only)
-                </Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
         </View>
       </View>
@@ -456,18 +425,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     flex: 1,
-  },
-  testButton: {
-    backgroundColor: colors.error,
-    margin: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    ...typography.body,
-    color: '#fff',
-    fontWeight: 'bold',
   },
 });
 

@@ -296,11 +296,19 @@ class AchievementService {
         // Merge with definitions to add any new achievements
         this.achievements = ACHIEVEMENT_DEFINITIONS.map(def => {
           const existing = savedAchievements.find(a => a.id === def.id);
-          return existing || {
-            ...def,
-            unlocked: false,
-            progress: 0
-          };
+          if (existing) {
+            // Convert unlockedAt string back to Date object if it exists
+            if (existing.unlockedAt && typeof existing.unlockedAt === 'string') {
+              existing.unlockedAt = new Date(existing.unlockedAt);
+            }
+            return existing;
+          } else {
+            return {
+              ...def,
+              unlocked: false,
+              progress: 0
+            };
+          }
         });
       } else {
         // Initialize with all achievements locked
@@ -587,8 +595,12 @@ class AchievementService {
     
     // Sort recent unlocks by date
     const recentUnlocks = unlocked
-      .filter(a => a.unlockedAt)
-      .sort((a, b) => (b.unlockedAt!.getTime() - a.unlockedAt!.getTime()))
+      .filter(a => a.unlockedAt && a.unlockedAt instanceof Date)
+      .sort((a, b) => {
+        const aTime = a.unlockedAt?.getTime() || 0;
+        const bTime = b.unlockedAt?.getTime() || 0;
+        return bTime - aTime;
+      })
       .slice(0, 5);
 
     return {

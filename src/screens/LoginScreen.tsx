@@ -17,6 +17,7 @@ import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { registerUser, loginUser } from '../../firebase/auth';
 import { setUserData } from '../../firebase/firestore';
 import ErrorHandler from '../utils/errorHandler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface LoginScreenProps {
   navigation: any;
@@ -108,6 +109,27 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
       if (isLogin) {
         const result = await loginUser(email, password);
         if (result.success) {
+          // Try to load existing profile data
+          try {
+            const { getUserData } = await import('../../firebase/firestore');
+            const userData = await getUserData(result.user.uid);
+            if (userData && userData.firstName && userData.lastName) {
+              const profileData = {
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                displayName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
+                email: userData.email || email,
+              };
+              console.log('LoginScreen: Loading existing profile data:', profileData);
+              await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+              console.log('LoginScreen: Profile data loaded and saved to local storage');
+            } else {
+              console.log('LoginScreen: No existing profile data found');
+            }
+          } catch (profileError) {
+            console.error('LoginScreen: Error loading profile data:', profileError);
+          }
+          
           onAuthSuccess();
           return result;
         } else {
@@ -119,13 +141,26 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
       } else {
         const result = await registerUser(email, password);
         if (result.success && result.user) {
-          await setUserData(result.user.uid, {
+          const profileData = {
             email: email,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             displayName: `${firstName.trim()} ${lastName.trim()}`,
             createdAt: new Date().toISOString(),
-          });
+          };
+          
+          console.log('LoginScreen: Saving profile data to Firebase:', profileData);
+          const saveResult = await setUserData(result.user.uid, profileData);
+          console.log('LoginScreen: Save result:', saveResult);
+          
+          // Also save to local storage immediately
+          try {
+            await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+            console.log('LoginScreen: Profile data saved to local storage');
+          } catch (localError) {
+            console.error('LoginScreen: Error saving to local storage:', localError);
+          }
+          
           onAuthSuccess();
           return result;
         } else {

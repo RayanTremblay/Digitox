@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth, db } from '../../firebase/firebaseConfig.ts';
+import { auth, db } from '../../firebase/firebaseConfig';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { DigiStats, WeeklyProgress } from '../utils/storage';
+import { DetoxStats, WeeklyProgress } from '../utils/storage';
 
 interface UserCloudData {
   profile: {
@@ -12,7 +12,7 @@ interface UserCloudData {
     createdAt: string;
     lastLoginAt: string;
   };
-  stats: DigiStats & {
+      stats: DetoxStats & {
     weeklyProgress: WeeklyProgress;
     lastSyncAt: string;
   };
@@ -29,6 +29,7 @@ class SyncService {
   private syncInProgress = false;
   private lastSyncTime = 0;
   private readonly SYNC_COOLDOWN = 30000; // 30 seconds
+  private pendingSync = false; // Track if we need to sync when back online
 
   /**
    * Sync local data to Firebase and get updated data
@@ -47,6 +48,10 @@ class SyncService {
       return { success: false, error: 'Sync cooldown active' };
     }
 
+    // Note: We'll handle offline errors in the catch block instead of pre-checking
+
+    let localData: Partial<UserCloudData> = {};
+    
     try {
       this.syncInProgress = true;
       this.lastSyncTime = now;
@@ -55,10 +60,16 @@ class SyncService {
       const userDocRef = doc(db, 'users', userId);
 
       // Get current local data
-      const localData = await this.getLocalUserData();
+      localData = await this.getLocalUserData();
       
-      // Get cloud data
-      const cloudDoc = await getDoc(userDocRef);
+      // Get cloud data with timeout
+      const cloudDoc = await Promise.race([
+        getDoc(userDocRef),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Firebase request timeout')), 30000)
+        )
+      ]) as any;
+      
       const cloudData = cloudDoc.exists() ? cloudDoc.data() as UserCloudData : null;
 
       // Determine which data is newer and merge accordingly
@@ -74,13 +85,167 @@ class SyncService {
       await this.saveLocalUserData(mergedData);
 
       console.log('User data synced successfully');
+      this.markSyncCompleted(); // Clear pending sync flag
       return { success: true };
 
     } catch (error: any) {
+      // Handle specific Firebase offline errors
+      if (error.message?.includes('offline') || error.message?.includes('Failed to get document') || error.message?.includes('timeout')) {
+        console.log('Sync skipped: Firebase is offline or timeout - will retry when back online');
+        this.pendingSync = true; // Mark that we need to sync when back online
+        
+        // Try to save local data anyway to ensure we have something
+        try {
+          if (localData && Object.keys(localData).length > 0) {
+            await this.saveLocalUserData(localData);
+          } else {
+            console.log('No local data to save during offline');
+          }
+        } catch (saveError) {
+          console.error('Error saving local data during offline:', saveError);
+        }
+        
+        return { success: false, error: 'Firebase is offline' };
+      }
+      
       console.error('Sync failed:', error);
       return { success: false, error: error.message };
     } finally {
       this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Get user profile data directly from Firebase auth as fallback
+   */
+  async getUserProfileFromAuth(): Promise<{ firstName: string; lastName: string; displayName: string } | null> {
+    try {
+      console.log('getUserProfileFromAuth: Starting...');
+      console.log('getUserProfileFromAuth: Auth object:', auth);
+      console.log('getUserProfileFromAuth: Current user:', auth.currentUser);
+      
+      if (!auth.currentUser) {
+        console.log('getUserProfileFromAuth: No current user');
+        return null;
+      }
+      
+      console.log('getUserProfileFromAuth: Current user ID:', auth.currentUser.uid);
+      console.log('getUserProfileFromAuth: Current user email:', auth.currentUser.email);
+      console.log('getUserProfileFromAuth: Current user displayName:', auth.currentUser.displayName);
+      
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      console.log('getUserProfileFromAuth: Getting document from Firebase...');
+      
+      // Add timeout to prevent hanging
+      const userDoc = await Promise.race([
+        getDoc(userDocRef),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Firebase request timeout')), 15000)
+        )
+      ]) as any;
+      
+      console.log('getUserProfileFromAuth: Document exists:', userDoc.exists());
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        console.log('getUserProfileFromAuth: Document data:', data);
+        
+        // Check if firstName and lastName are null, missing, or empty strings
+        if (!data.firstName || data.firstName === null || data.firstName === '' || 
+            !data.lastName || data.lastName === null || data.lastName === '') {
+          console.log('getUserProfileFromAuth: Profile data is incomplete, creating from email...');
+          
+          // Create profile from email
+          const email = auth.currentUser.email || '';
+          const emailName = email.split('@')[0] || 'User';
+          const emailParts = emailName.split('.');
+          
+          const updatedProfile = {
+            firstName: emailParts[0] || emailName,
+            lastName: emailParts[1] || '',
+            displayName: emailName,
+          };
+          
+          console.log('getUserProfileFromAuth: Created profile from email:', updatedProfile);
+          
+          // Update the Firebase document with the new profile data
+          try {
+            await setDoc(userDocRef, {
+              ...data, // Keep existing data
+              firstName: updatedProfile.firstName,
+              lastName: updatedProfile.lastName,
+              displayName: updatedProfile.displayName,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+            console.log('getUserProfileFromAuth: Updated Firebase document with profile data');
+          } catch (updateError) {
+            console.error('getUserProfileFromAuth: Error updating Firebase document:', updateError);
+          }
+          
+          return updatedProfile;
+        } else {
+          // Profile data is valid, return it
+          const profile = {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            displayName: data.displayName || `${data.firstName} ${data.lastName}`,
+          };
+          console.log('getUserProfileFromAuth: Returning existing valid profile:', profile);
+          return profile;
+        }
+      }
+      
+      console.log('getUserProfileFromAuth: Document does not exist, creating basic profile...');
+      console.log('getUserProfileFromAuth: User displayName:', auth.currentUser.displayName);
+      console.log('getUserProfileFromAuth: User email:', auth.currentUser.email);
+      
+      // If document doesn't exist, create a basic profile with available data
+      const displayName = auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'User';
+      const nameParts = displayName.split(' ');
+      const basicProfile = {
+        firstName: nameParts[0] || 'User',
+        lastName: nameParts[1] || '',
+        displayName: displayName,
+      };
+      
+      console.log('getUserProfileFromAuth: Created basic profile:', basicProfile);
+      
+      // Save this basic profile to Firebase
+      try {
+        await setDoc(userDocRef, {
+          email: auth.currentUser.email || '',
+          firstName: basicProfile.firstName,
+          lastName: basicProfile.lastName,
+          displayName: basicProfile.displayName,
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        }, { merge: true });
+        console.log('getUserProfileFromAuth: Basic profile created in Firebase');
+      } catch (saveError) {
+        console.error('getUserProfileFromAuth: Error saving basic profile:', saveError);
+      }
+      
+      return basicProfile;
+    } catch (error) {
+      console.error('getUserProfileFromAuth: Error getting profile from auth:', error);
+      
+      // If Firebase is completely offline, create a basic profile from auth data
+      if (auth.currentUser) {
+        console.log('getUserProfileFromAuth: Creating offline fallback profile');
+        const email = auth.currentUser.email || '';
+        const emailName = email.split('@')[0] || 'User';
+        
+        const offlineProfile = {
+          firstName: emailName,
+          lastName: '',
+          displayName: emailName,
+        };
+        
+        console.log('getUserProfileFromAuth: Offline profile created:', offlineProfile);
+        return offlineProfile;
+      }
+      
+      return null;
     }
   }
 
@@ -309,7 +474,21 @@ class SyncService {
    */
   shouldAutoSync(): boolean {
     const now = Date.now();
-    return now - this.lastSyncTime > this.SYNC_COOLDOWN;
+    return now - this.lastSyncTime > this.SYNC_COOLDOWN || this.pendingSync;
+  }
+
+  /**
+   * Mark sync as completed (clears pending flag)
+   */
+  private markSyncCompleted(): void {
+    this.pendingSync = false;
+  }
+
+  /**
+   * Check if there's a pending sync due to offline issues
+   */
+  hasPendingSync(): boolean {
+    return this.pendingSync;
   }
 }
 

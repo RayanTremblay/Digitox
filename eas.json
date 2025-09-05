@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -20,6 +21,9 @@
       }
     },
     "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyB_sm6Qx6yy3BwdD_7daw1aPSsFAAIK7XE",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "detoxly-fbf32.firebaseapp.com",

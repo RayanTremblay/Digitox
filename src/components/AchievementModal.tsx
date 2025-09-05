@@ -18,7 +18,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
 }) => {
   if (!achievement) return null;
 
-  const getRarityColors = (rarity: Achievement['rarity']) => {
+  const getRarityColors = (rarity: Achievement['rarity']): [string, string] => {
     switch (rarity) {
       case 'common':
         return ['#4CAF50', '#66BB6A'];

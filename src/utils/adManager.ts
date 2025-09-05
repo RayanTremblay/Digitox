@@ -108,9 +108,10 @@ class AdManager {
       console.log('Ad Manager: Attempting to show rewarded ad...');
       console.log('Ad Manager: Ad Unit ID:', AD_UNIT_IDS.REWARDED);
       
-      // Create a promise that will resolve when the ad is properly shown
+      // Create a promise that will resolve when the ad is properly shown and completed
       const adShowPromise = new Promise<boolean>((resolve, reject) => {
-        let adShown = false;
+        let adCompleted = false;
+        let rewardEarned = false;
         let timeout: NodeJS.Timeout;
         
         const cleanup = () => {
@@ -118,38 +119,56 @@ class AdManager {
         };
         
         // Set up temporary event listeners to track ad completion
-        const handleAdDismissed = () => {
+        const handleRewardEarned = () => {
+          console.log('Ad Manager: User earned reward');
+          rewardEarned = true;
+        };
+        
+        const handleAdClosed = () => {
+          console.log('Ad Manager: Ad was closed');
           cleanup();
-          console.log('Ad Manager: Ad was properly dismissed after being watched');
-          adShown = true;
-          resolve(true);
+          if (!adCompleted) {
+            adCompleted = true;
+            resolve(rewardEarned);
+          }
         };
         
         const handleAdFailedToShow = (error: any) => {
-          cleanup();
           console.log('Ad Manager: Ad failed to show:', error);
-          reject(error);
+          cleanup();
+          if (!adCompleted) {
+            adCompleted = true;
+            reject(error);
+          }
         };
         
         // Add listeners
-        this.rewardedAd!.addAdEventListener(RewardedAdEventType.EARNED_REWARD, handleAdDismissed);
+        this.rewardedAd!.addAdEventListener(RewardedAdEventType.EARNED_REWARD, handleRewardEarned);
+        this.rewardedAd!.addAdEventListener(AdEventType.CLOSED, handleAdClosed);
         this.rewardedAd!.addAdEventListener(AdEventType.ERROR, handleAdFailedToShow);
         
-        // Timeout after 10 seconds if ad doesn't respond
+        // Set a reasonable timeout (30 seconds) to prevent hanging
         timeout = setTimeout(() => {
           cleanup();
-          if (!adShown) {
-            console.log('Ad Manager: Ad show timeout - no response after 10 seconds');
-            reject(new Error('Ad show timeout'));
+          if (!adCompleted) {
+            console.log('Ad Manager: Ad show timeout after 30 seconds');
+            adCompleted = true;
+            resolve(rewardEarned);
           }
-        }, 10000);
+        }, 30000);
         
         // Try to show the ad
-        this.rewardedAd!.show().catch(reject);
+        this.rewardedAd!.show().catch((error) => {
+          cleanup();
+          if (!adCompleted) {
+            adCompleted = true;
+            reject(error);
+          }
+        });
       });
       
-      // Wait for the ad to be properly shown and watched
-      await adShowPromise;
+      // Wait for the ad to be properly shown and dismissed
+      const rewardEarned = await adShowPromise;
       
       // Reset ad state
       this.isAdLoaded = false;
@@ -158,7 +177,7 @@ class AdManager {
       this.rewardedAd = RewardedAd.createForAdRequest(AD_UNIT_IDS.REWARDED);
       this.setupAdEventListeners();
       
-      console.log('Ad Manager: User watched ad, reward granted');
+      console.log('Ad Manager: Ad completed, reward earned:', rewardEarned);
       
       // Preload next ad
       setTimeout(() => this.preloadAd(), 1000);

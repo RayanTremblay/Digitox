@@ -123,7 +123,7 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
         {showProfile && (
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
           >
             <Text style={styles.profileText}>{userInitials}</Text>
           </TouchableOpacity>
