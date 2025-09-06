@@ -110,16 +110,9 @@ const copyToClipboard = async (message: string, userId: string): Promise<boolean
   try {
     await Clipboard.setString(message);
     await recordInviteSent('copy');
-    
-    Alert.alert(
-              'Copied!',
-      'Referral link copied to clipboard. Share it anywhere you like!',
-      [{ text: 'OK' }]
-    );
     return true;
   } catch (error) {
     console.error('Error copying to clipboard:', error);
-    Alert.alert('Error', 'Failed to copy to clipboard.');
     return false;
   }
 };

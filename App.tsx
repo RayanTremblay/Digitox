@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { BalanceProvider } from './src/contexts/BalanceContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { SplashScreen } from './app/components/SplashScreen';
@@ -82,7 +83,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AppContent />
+        <BalanceProvider>
+          <AppContent />
+        </BalanceProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

@@ -208,7 +208,7 @@ export class ErrorHandler {
       } : error,
     };
 
-    console.error('🚨 App Error:', errorInfo);
+    console.error('App Error:', errorInfo);
     
     // In production, you would send this to a crash reporting service like:
     // - Crashlytics: crashlytics().recordError(error)

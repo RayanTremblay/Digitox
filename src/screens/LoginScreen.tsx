@@ -112,19 +112,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
           // Try to load existing profile data
           try {
             const { getUserData } = await import('../../firebase/firestore');
-            const userData = await getUserData(result.user.uid);
-            if (userData && userData.firstName && userData.lastName) {
-              const profileData = {
-                firstName: userData.firstName,
-                lastName: userData.lastName,
-                displayName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
-                email: userData.email || email,
-              };
-              console.log('LoginScreen: Loading existing profile data:', profileData);
-              await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
-              console.log('LoginScreen: Profile data loaded and saved to local storage');
+            const userDataResult = await getUserData(result.user!.uid);
+            if (userDataResult.success && userDataResult.data) {
+              const userData = userDataResult.data;
+              if (userData.firstName && userData.lastName) {
+                const profileData = {
+                  firstName: userData.firstName,
+                  lastName: userData.lastName,
+                  displayName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
+                  email: userData.email || email,
+                };
+                console.log('LoginScreen: Loading existing profile data:', profileData);
+                await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+                console.log('LoginScreen: Profile data loaded and saved to local storage');
+              } else {
+                console.log('LoginScreen: No existing profile data found');
+              }
             } else {
-              console.log('LoginScreen: No existing profile data found');
+              console.log('LoginScreen: Failed to load user data:', userDataResult.error);
             }
           } catch (profileError) {
             console.error('LoginScreen: Error loading profile data:', profileError);

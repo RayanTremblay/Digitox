@@ -232,7 +232,7 @@ const DetoxScreen = () => {
   const handleStartNewSession = () => {
     setShowSessionInterruptedModal(false);
     // Save progress first, then restart
-    updateDetoxStats(Number(interruptedSessionData?.coinsEarned || 0), timeElapsed).then(() => {
+    updateDetoxStats(Number(interruptedSessionData?.coinsEarned || 0), timeElapsed / 60).then(() => {
       // Reset for new session
       setTimeElapsed(0);
       setEarnedDetoxcoins(0);
@@ -245,7 +245,7 @@ const DetoxScreen = () => {
     
     // Update stats with earned Detoxcoins and time
     if (timeElapsed > 0) {
-      await updateDetoxStats(earnedDetoxcoins, timeElapsed);
+      await updateDetoxStats(earnedDetoxcoins, timeElapsed / 60);
       
       // Send congratulatory notification for completing a detox session
       if (timeElapsed >= 300) { // 5 minutes or more
@@ -314,7 +314,7 @@ const DetoxScreen = () => {
           if (stats.dailyTimeSaved === 0 && timeElapsed > 0) {
             // If dailyTimeSaved is reset to 0 but we have time elapsed,
             // we need to update the stats with our current session
-            await updateDetoxStats(earnedDetoxcoins, timeElapsed);
+            await updateDetoxStats(earnedDetoxcoins, timeElapsed / 60);
           }
         });
       }, 60000); // Check every minute
@@ -367,7 +367,7 @@ const DetoxScreen = () => {
           <View style={styles.content}>
             <Header showProfile={false} />
             <View style={styles.titleContainer}>
-              <Text style={styles.title}>Detoxcoin</Text>
+              <Text style={styles.title}>Detoxly</Text>
             </View>
 
             <View style={styles.mainContent}>
@@ -438,7 +438,7 @@ const DetoxScreen = () => {
                   <Text style={styles.instructionItem}>• Keep the app open and your phone unlocked</Text>
                   <Text style={styles.instructionItem}>• After 1 minute, the screen will dim to save battery</Text>
                   <Text style={styles.instructionItem}>• Due to iOS limitations, we cannot track when the app is closed or the phone is locked</Text>
-                  <Text style={styles.instructionItem}>• 🔒 Your session will automatically end if you leave the app</Text>
+                  <Text style={styles.instructionItem}>• Your session will automatically end if you leave the app</Text>
                   <Text style={styles.instructionItem}>• You'll receive rewards for the time spent in detox until the session ends</Text>
                 </View>
               </View>
@@ -447,11 +447,11 @@ const DetoxScreen = () => {
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity style={styles.pauseButton} onPress={handlePauseDetox}>
                     <Text style={styles.pauseButtonText}>
-                      {isActive ? '⏸️ Pause' : '▶️ Resume'}
+                      {isActive ? 'Pause' : 'Resume'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.endButton} onPress={handleEndDetox}>
-                    <Text style={styles.endButtonText}>🔚 End Detox</Text>
+                    <Text style={styles.endButtonText}>End Detox</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -619,7 +619,7 @@ const DetoxScreen = () => {
             <View style={styles.interruptedModalContent}>
               {/* Warning Icon */}
               <View style={styles.warningIconContainer}>
-                <Text style={styles.warningIcon}>🚨</Text>
+                <Text style={styles.warningIcon}>!</Text>
               </View>
 
               {/* Title */}
@@ -633,12 +633,12 @@ const DetoxScreen = () => {
               {/* Stats Container */}
               <View style={styles.interruptedStatsContainer}>
                 <View style={styles.statRow}>
-                  <Text style={styles.statIcon}>⏱️</Text>
+                  <Text style={styles.statIcon}>Time</Text>
                   <Text style={styles.statLabel}>Time completed:</Text>
                   <Text style={styles.statValue}>{interruptedSessionData?.timeCompleted}</Text>
                 </View>
                 <View style={styles.statRow}>
-                  <Text style={styles.statIcon}>💰</Text>
+                  <Text style={styles.statIcon}>Coins</Text>
                   <Text style={styles.statLabel}>Detoxcoins earned:</Text>
                   <Text style={styles.statValue}>{interruptedSessionData?.coinsEarned}</Text>
                 </View>
@@ -956,7 +956,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#6C63FF',
     borderRadius: 12,
     width: 24,
     height: 24,

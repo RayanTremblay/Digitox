@@ -46,6 +46,7 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
     rewardPerReferral: REFERRAL_REWARD,
   });
   const [isSharing, setIsSharing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -62,8 +63,30 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
     }
   };
 
+  const handleCopyLink = async () => {
+    try {
+      const option = SHARE_OPTIONS.find(opt => opt.id === 'copy');
+      if (option) {
+        const success = await shareViaPlatform(option, stats.userId);
+        if (success) {
+          setIsCopied(true);
+          // Reset the copied state after 2 seconds
+          setTimeout(() => setIsCopied(false), 2000);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying link:', error);
+    }
+  };
+
   const handleShare = async (optionId: string) => {
     if (isSharing) return;
+    
+    // Handle copy separately
+    if (optionId === 'copy') {
+      await handleCopyLink();
+      return;
+    }
     
     setIsSharing(true);
     try {
@@ -145,14 +168,20 @@ const ReferralModal = ({ visible, onClose, onReferralComplete }: ReferralModalPr
             <View style={styles.codeSection}>
               <Text style={styles.sectionTitle}>Your Referral Link</Text>
               <TouchableOpacity
-                style={styles.linkContainer}
+                style={[styles.linkContainer, isCopied && styles.linkContainerCopied]}
                 onPress={() => handleShare('copy')}
               >
                 <Ionicons name="link" size={20} color={colors.primary} style={styles.linkIcon} />
                 <Text style={styles.linkText}>detoxly.app/invite?referrer={stats.userId}</Text>
-                <Ionicons name="copy" size={16} color={colors.primary} />
+                <Ionicons 
+                  name={isCopied ? "checkmark" : "copy"} 
+                  size={16} 
+                  color={isCopied ? "#6C63FF" : colors.primary} 
+                />
               </TouchableOpacity>
-              <Text style={styles.linkHint}>Tap to copy your personal invite link</Text>
+              <Text style={styles.linkHint}>
+                {isCopied ? "Copied to clipboard!" : "Tap to copy your personal invite link"}
+              </Text>
             </View>
 
             {/* Stats */}
@@ -318,6 +347,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+  },
+  linkContainerCopied: {
+    // Keep original background, only change the check icon color
   },
   linkIcon: {
     marginRight: spacing.sm,

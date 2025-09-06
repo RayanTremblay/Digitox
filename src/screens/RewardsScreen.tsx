@@ -5,38 +5,37 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import Header from '../components/Header';
 import ScratchCard, { ScratchReward } from '../components/ScratchCard';
+import RewardModal from '../components/RewardModal';
 import { purchaseScratchCard, processReward, getScratchCardCost } from '../utils/scratchCardManager';
+import { useBalance } from '../contexts/BalanceContext';
 import { getDetoxcoinsBalance } from '../utils/storage';
 import adManager from '../utils/adManager';
 import { useAuth } from '../contexts/AuthContext';
 
 const RewardsScreen = () => {
   const { user } = useAuth();
-  const [userBalance, setUserBalance] = useState(0);
+  const { balance, refreshBalance } = useBalance();
   const [isLoading, setIsLoading] = useState(false);
   const [scratchCardKey, setScratchCardKey] = useState(0);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardData, setRewardData] = useState<{
+    title: string;
+    message: string;
+    rewardAmount?: number;
+    rewardType?: 'detoxcoin' | 'gift' | 'boost';
+    newBalance?: number;
+  }>({
+    title: '',
+    message: '',
+  });
 
   const SCRATCH_CARD_COST = 5;
-
-  // Load user balance
-  const loadUserBalance = async () => {
-    try {
-      const balance = await getDetoxcoinsBalance();
-      setUserBalance(balance);
-    } catch (error) {
-      console.error('Error loading user balance:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadUserBalance();
-  }, []);
 
   // Reload balance when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadUserBalance();
-    }, [])
+      refreshBalance();
+    }, [refreshBalance])
   );
 
   const handlePurchaseAndWatchAd = async (): Promise<boolean> => {
@@ -46,10 +45,10 @@ const RewardsScreen = () => {
     
     try {
       // Check if user has enough balance
-      if (userBalance < SCRATCH_CARD_COST) {
+      if (balance < SCRATCH_CARD_COST) {
         Alert.alert(
           'Insufficient Balance',
-          `You need ${SCRATCH_CARD_COST} Detoxcoins to purchase a scratch card. You currently have ${userBalance.toFixed(2)} Detoxcoins.`,
+          `You need ${SCRATCH_CARD_COST} Detoxcoins to purchase a scratch card. You currently have ${balance.toFixed(2)} Detoxcoins.`,
           [{ text: 'OK' }]
         );
         return false;
@@ -63,8 +62,8 @@ const RewardsScreen = () => {
         return false;
       }
 
-      // Update local balance immediately after purchase
-      setUserBalance(prev => prev - SCRATCH_CARD_COST);
+      // Refresh balance after purchase
+      await refreshBalance();
 
       // Then, show the ad
       const adResult = await adManager.showRewardedAd();
@@ -76,8 +75,8 @@ const RewardsScreen = () => {
           [{ text: 'OK' }]
         );
         
-        // Refund the Detoxcoins since ad wasn't watched
-        setUserBalance(prev => prev + SCRATCH_CARD_COST);
+        // Refresh balance to show refund
+        await refreshBalance();
         return false;
       }
 
@@ -111,20 +110,30 @@ const RewardsScreen = () => {
       
       if (success) {
         if (reward.type === 'detoxcoin') {
-          // Update local balance for Detoxcoins
-          setUserBalance(prev => prev + reward.amount);
+          // Refresh balance to get updated amount
+          await refreshBalance();
           
-          Alert.alert(
-            'Congratulations!',
-            `You won ${reward.displayText}! Your new balance is ${(userBalance + reward.amount).toFixed(2)} Detoxcoins.`,
-            [{ text: 'Awesome!' }]
-          );
+          // Get the actual updated balance from storage
+          const updatedBalance = await getDetoxcoinsBalance();
+          
+          // Show custom reward modal
+          setRewardData({
+            title: 'Congratulations!',
+            message: `You won ${reward.displayText}!`,
+            rewardAmount: reward.amount,
+            rewardType: 'detoxcoin',
+            newBalance: updatedBalance,
+          });
+          setShowRewardModal(true);
         } else {
-          Alert.alert(
-            'Amazing!',
-            `You won a ${reward.displayText}! The gift card code will be sent to your email within 24 hours.`,
-            [{ text: 'Incredible!' }]
-          );
+          // Show custom gift card modal
+          setRewardData({
+            title: 'Amazing!',
+            message: `You won a ${reward.displayText}! The gift card code will be sent to your email within 24 hours.`,
+            rewardAmount: reward.amount,
+            rewardType: 'gift',
+          });
+          setShowRewardModal(true);
         }
       } else {
         Alert.alert('Error', 'Failed to process your reward. Please contact support.');
@@ -161,20 +170,9 @@ const RewardsScreen = () => {
               onPurchaseAndWatchAd={handlePurchaseAndWatchAd}
               onReplay={handleReplay}
               disabled={isLoading}
-              userBalance={userBalance}
+              userBalance={balance}
             />
             
-            <View style={styles.scratchCardInfo}>
-              <Text style={styles.infoText}>
-                Cost: {SCRATCH_CARD_COST} Detoxcoins + Ad
-              </Text>
-              <Text style={styles.infoText}>
-                Your Balance: {userBalance.toFixed(2)} Detoxcoins
-              </Text>
-              <Text style={styles.infoSubtext}>
-                Pay {SCRATCH_CARD_COST} Detoxcoins and watch an ad to play • Win Detoxcoins or Amazon Gift Cards up to $20!
-              </Text>
-            </View>
           </View>
 
           {/* Coming Soon Section for Other Rewards */}
@@ -194,6 +192,17 @@ const RewardsScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Custom Reward Modal */}
+      <RewardModal
+        visible={showRewardModal}
+        onClose={() => setShowRewardModal(false)}
+        title={rewardData.title}
+        message={rewardData.message}
+        rewardAmount={rewardData.rewardAmount}
+        rewardType={rewardData.rewardType}
+        newBalance={rewardData.newBalance}
+      />
     </LinearGradient>
   );
 };
@@ -236,24 +245,6 @@ const styles = StyleSheet.create({
   scratchCardContainer: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.xl,
-  },
-  scratchCardInfo: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  infoText: {
-    ...typography.body,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    fontWeight: '600',
-  },
-  infoSubtext: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-    fontStyle: 'italic',
   },
   comingSoonSection: {
     marginHorizontal: spacing.md,

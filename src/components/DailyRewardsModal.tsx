@@ -11,6 +11,9 @@ import {
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import RewardModal from './RewardModal';
+import { useBalance } from '../contexts/BalanceContext';
+import { getDetoxcoinsBalance } from '../utils/storage';
 import {
   getDailyRewardsStats,
   getRewardProbabilities,
@@ -35,6 +38,7 @@ interface DailyRewardsStats {
 }
 
 const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsModalProps) => {
+  const { refreshBalance } = useBalance();
   const [stats, setStats] = useState<DailyRewardsStats>({
     claimsToday: 0,
     maxClaims: 3,
@@ -46,6 +50,17 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
   const [recentClaims, setRecentClaims] = useState<DailyClaimRecord[]>([]);
   const [isClaiming, setIsClaiming] = useState(false);
   const [showProbabilities, setShowProbabilities] = useState(false);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardData, setRewardData] = useState<{
+    title: string;
+    message: string;
+    rewardAmount?: number;
+    rewardType?: 'detoxcoin' | 'gift' | 'boost';
+    newBalance?: number;
+  }>({
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     if (visible) {
@@ -75,13 +90,21 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
 
       if (result.success && result.reward !== undefined) {
         await loadData(); // Refresh data
+        await refreshBalance(); // Refresh balance context
         onRewardClaimed?.(); // Notify parent
 
-        Alert.alert(
-          'Daily Reward Claimed!',
-          `Amazing! You earned ${result.reward} Detoxcoins!`,
-          [{ text: 'Awesome!' }]
-        );
+        // Get the actual updated balance from storage
+        const updatedBalance = await getDetoxcoinsBalance();
+
+        // Show custom reward modal
+        setRewardData({
+          title: 'Daily Reward Claimed!',
+          message: `Amazing! You earned ${result.reward} Detoxcoins!`,
+          rewardAmount: result.reward,
+          rewardType: 'detoxcoin',
+          newBalance: updatedBalance,
+        });
+        setShowRewardModal(true);
       } else {
         Alert.alert(
           'Claim Failed',
@@ -266,6 +289,16 @@ const DailyRewardsModal = ({ visible, onClose, onRewardClaimed }: DailyRewardsMo
           </ScrollView>
         </View>
       </View>
+
+      {/* Custom Reward Modal */}
+      <RewardModal
+        visible={showRewardModal}
+        onClose={() => setShowRewardModal(false)}
+        title={rewardData.title}
+        message={rewardData.message}
+        rewardAmount={rewardData.rewardAmount}
+        rewardType={rewardData.rewardType}
+      />
     </Modal>
   );
 };

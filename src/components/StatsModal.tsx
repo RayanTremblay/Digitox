@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import { getDetoxStats } from '../utils/storage';
+import { useBalance } from '../contexts/BalanceContext';
 
 interface StatsModalProps {
   visible: boolean;
   onClose: () => void;
   stats?: {
-    currentBalance: number;
     totalEarned: number;
     totalTimeSaved: number;
   };
@@ -27,8 +27,8 @@ const formatLongTime = (seconds: number) => {
 };
 
 const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passedStats }) => {
+  const { balance, refreshBalance } = useBalance();
   const [stats, setStats] = useState({
-    currentBalance: 0,
     totalEarned: 0,
     totalTimeSaved: 0,
   });
@@ -40,13 +40,13 @@ const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passed
       } else {
         loadStats();
       }
+      refreshBalance(); // Refresh balance when modal opens
     }
-  }, [visible, passedStats]);
+  }, [visible, passedStats, refreshBalance]);
 
   const loadStats = async () => {
     const currentStats = await getDetoxStats();
     setStats({
-      currentBalance: currentStats.balance,
       totalEarned: currentStats.totalEarned,
       totalTimeSaved: currentStats.totalTimeSaved,
     });
@@ -81,7 +81,7 @@ const StatsModal: React.FC<StatsModalProps> = ({ visible, onClose, stats: passed
             </View>
             <View style={styles.statInfo}>
               <Text style={styles.statLabel}>Current Balance</Text>
-              <Text style={styles.statValue}>{stats.currentBalance.toFixed(2)}</Text>
+              <Text style={styles.statValue}>{balance.toFixed(2)}</Text>
             </View>
           </View>
 

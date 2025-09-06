@@ -1,3 +1,5 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
 // Main Tab Navigator Types
 export type MainTabParamList = {
   Home: undefined;
@@ -8,7 +10,7 @@ export type MainTabParamList = {
 
 // Root Stack Navigator Types (contains tabs and modal screens)
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Detox: undefined;
   Privacy: undefined;
   HelpSupport: undefined;

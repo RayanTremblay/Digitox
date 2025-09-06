@@ -316,13 +316,13 @@ const AdminCodeScreen = () => {
             </View>
           )}
 
-          {/* 🎁 GIFT CARD WINS SECTION */}
+          {/* GIFT CARD WINS SECTION */}
           <TouchableOpacity 
             style={[styles.toggleButton, { backgroundColor: pendingGiftCards.length > 0 ? '#FF6B35' : colors.surface }]}
             onPress={() => setShowGiftCards(!showGiftCards)}
           >
             <Text style={[styles.toggleButtonText, { color: pendingGiftCards.length > 0 ? colors.background : colors.primary }]}>
-              🎁 {showGiftCards ? 'Hide Gift Card Wins' : `Gift Card Wins (${pendingGiftCards.length} pending)`}
+              {showGiftCards ? 'Hide Gift Card Wins' : `Gift Card Wins (${pendingGiftCards.length} pending)`}
             </Text>
             <Ionicons 
               name={showGiftCards ? 'chevron-up' : 'chevron-down'} 
@@ -334,15 +334,15 @@ const AdminCodeScreen = () => {
           {showGiftCards && (
             <View style={styles.codesSection}>
               <View style={styles.codesList}>
-                <Text style={styles.codesTitle}>🚨 Pending Gift Cards ({pendingGiftCards.length})</Text>
+                <Text style={styles.codesTitle}>Pending Gift Cards ({pendingGiftCards.length})</Text>
                 <ScrollView style={styles.codesScrollView} nestedScrollEnabled>
                   {pendingGiftCards.length === 0 ? (
-                    <Text style={styles.noDataText}>No pending gift cards! 🎉</Text>
+                    <Text style={styles.noDataText}>No pending gift cards!</Text>
                   ) : (
                     pendingGiftCards.map((win, index) => (
                       <View key={index} style={[styles.assignedCodeItem, { backgroundColor: '#FF6B35', opacity: 0.9 }]}>
                         <Text style={[styles.codeItem, { color: colors.background, fontWeight: 'bold' }]}>
-                          💳 ${win.amount} Amazon Gift Card
+                          ${win.amount} Amazon Gift Card
                         </Text>
                         <Text style={[styles.codeUser, { color: colors.background }]}>
                           User: {win.userId || 'Unknown'} | Email: {win.email || 'Unknown'}
@@ -354,7 +354,7 @@ const AdminCodeScreen = () => {
                           style={styles.markSentButton}
                           onPress={() => handleMarkGiftCardSent(win.id)}
                         >
-                          <Text style={styles.markSentButtonText}>Mark as Sent ✅</Text>
+                          <Text style={styles.markSentButtonText}>Mark as Sent</Text>
                         </TouchableOpacity>
                       </View>
                     ))
@@ -363,13 +363,13 @@ const AdminCodeScreen = () => {
               </View>
 
               <View style={styles.codesList}>
-                <Text style={styles.codesTitle}>✅ Sent Gift Cards ({sentGiftCards.length})</Text>
+                <Text style={styles.codesTitle}>Sent Gift Cards ({sentGiftCards.length})</Text>
                 <ScrollView style={styles.codesScrollView} nestedScrollEnabled>
                   {sentGiftCards.map((win, index) => (
                     <View key={index} style={styles.assignedCodeItem}>
-                      <Text style={styles.codeItem}>💳 ${win.amount} Amazon Gift Card</Text>
+                      <Text style={styles.codeItem}>${win.amount} Amazon Gift Card</Text>
                       <Text style={styles.codeUser}>User: {win.userId || 'Unknown'}</Text>
-                      <Text style={styles.codeStatus}>✅ Sent</Text>
+                      <Text style={styles.codeStatus}>Sent</Text>
                       <Text style={styles.codeUser}>
                         Won: {new Date(win.timestamp).toLocaleDateString()}
                       </Text>

@@ -7,6 +7,7 @@ import { colors, typography, spacing, borderRadius } from '../theme/theme';
 import StatsModal from './StatsModal';
 import { getDetoxStats } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
+import { useBalance } from '../contexts/BalanceContext';
 import { getUserData } from '../../firebase/firestore';
 import { generateInitials, generateInitialsFromDisplayName, generateInitialsFromEmail } from '../utils/userUtils';
 import { RootStackParamList } from '../types/navigation';
@@ -21,10 +22,10 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true }) => {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
+  const { balance, refreshBalance } = useBalance();
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [userInitials, setUserInitials] = useState('U');
   const [stats, setStats] = useState({
-    balance: 0,
     totalEarned: 0,
     totalTimeSaved: 0,
   });
@@ -38,13 +39,17 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
     React.useCallback(() => {
       loadStats();
       loadUserData();
+      refreshBalance(); // Refresh balance when screen comes into focus
       return () => {};
-    }, [user])
+    }, [user, refreshBalance])
   );
 
   const loadStats = async () => {
     const currentStats = await getDetoxStats();
-    setStats(currentStats);
+    setStats({
+      totalEarned: currentStats.totalEarned,
+      totalTimeSaved: currentStats.totalTimeSaved,
+    });
   };
 
   const loadUserData = async () => {
@@ -117,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({ showBack = false, showProfile = true })
             style={styles.coinIcon}
             resizeMode="contain"
           />
-          <Text style={styles.balanceText}>{stats.balance.toFixed(2)}</Text>
+          <Text style={styles.balanceText}>{balance.toFixed(2)}</Text>
         </TouchableOpacity>
 
         {showProfile && (

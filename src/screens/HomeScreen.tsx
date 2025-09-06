@@ -7,13 +7,15 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Header from '../components/Header';
 import CircularProgress from '../components/CircularProgress';
 import ProgressBar from '../components/ProgressBar';
-import { getDetoxStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, resetAllStatsToZero } from '../utils/storage';
+import RewardModal from '../components/RewardModal';
+import { getDetoxStats, getWeeklyProgress, WeeklyProgress, checkAndResetDailyStats, getDetoxcoinsBalance} from '../utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LoginScreen from './LoginScreen';
 import ReferralModal from '../components/ReferralModal';
 import DailyRewardsModal from '../components/DailyRewardsModal';
 import { claimDailyReward, getDailyRewardsStats } from '../utils/dailyRewardsManager';
+import { useBalance } from '../contexts/BalanceContext';
 import { activateAdBoost, getBoostStats, shouldApplyBoostMultiplier } from '../utils/boostManager';
 import achievementService from '../services/achievementService';
 import AchievementPreview from '../components/AchievementPreview';
@@ -29,6 +31,7 @@ const BOOST_THRESHOLD_MINUTES = 180; // 3 hours
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { refreshBalance } = useBalance();
   const [timeSpent, setTimeSpent] = useState(0); // minutes
   const [weekProgress, setWeekProgress] = useState<WeeklyProgress>({ 
     Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 
@@ -50,6 +53,17 @@ const HomeScreen = () => {
     remainingMinutes: 0,
     totalAdBoostsUsed: 0,
     canActivateAdBoost: true,
+  });
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardData, setRewardData] = useState<{
+    title: string;
+    message: string;
+    rewardAmount?: number;
+    rewardType?: 'detoxcoin' | 'gift' | 'boost';
+    newBalance?: number;
+  }>({
+    title: '',
+    message: '',
   });
 
   // Get current day and create week data
@@ -156,12 +170,20 @@ const HomeScreen = () => {
         // Reload stats to update UI
         await loadDailyRewardsStats();
         await loadDailyStats(); // Update balance display
+        await refreshBalance(); // Refresh balance context
         
-        Alert.alert(
-          'Daily Reward Claimed!',
-          `Congratulations! You earned ${result.reward} Detoxcoins!`,
-          [{ text: 'Awesome!' }]
-        );
+        // Get the actual updated balance from storage
+        const updatedBalance = await getDetoxcoinsBalance();
+        
+        // Show custom reward modal
+        setRewardData({
+          title: 'Daily Reward Claimed!',
+          message: `Congratulations! You earned ${result.reward} Detoxcoins!`,
+          rewardAmount: result.reward,
+          rewardType: 'detoxcoin',
+          newBalance: updatedBalance,
+        });
+        setShowRewardModal(true);
       } else {
         Alert.alert(
           'Claim Failed',
@@ -188,11 +210,13 @@ const HomeScreen = () => {
         await loadBoostStats();
         await loadDailyStats(); // Update boost multiplier display
         
-        Alert.alert(
-          '2x Boost Activated!',
-          'Amazing! You now have 2x boost for the next 2 hours!',
-          [{ text: 'Awesome!' }]
-        );
+        // Show custom boost modal
+        setRewardData({
+          title: '2x Boost Activated!',
+          message: 'Amazing! You now have 2x boost for the next 2 hours!',
+          rewardType: 'boost',
+        });
+        setShowRewardModal(true);
       } else {
         Alert.alert(
           'Boost Activation Failed',
@@ -421,73 +445,50 @@ const HomeScreen = () => {
           {/* Achievement Preview */}
           <AchievementPreview onPress={() => navigation.navigate('Achievements')} />
           
-          {/* Reset button for testing */}
-          <TouchableOpacity 
-            style={styles.resetButton}
-            onPress={() => {
-              Alert.alert(
-                "Reset All Stats",
-                "This will reset all your stats to zero for testing purposes. Are you sure?",
-                [
-                  {
-                    text: "Cancel",
-                    style: "cancel"
-                  },
-                  { 
-                    text: "Reset", 
-                    onPress: async () => {
-                      await resetAllStatsToZero();
-                      loadDailyStats(); // Reload stats after reset
-                    },
-                    style: "destructive"
-                  }
-                ]
-              );
-            }}
-          >
-            <Text style={styles.resetButtonText}>Reset All Stats (Testing)</Text>
-          </TouchableOpacity>
+         
         </View>
       </ScrollView>
       
 
       {/* Daily Goal Modal */}
       <Modal
-        animationType="fade"
-        transparent={true}
         visible={showGoalModal}
+        transparent
+        animationType="fade"
         onRequestClose={() => setShowGoalModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Set Daily Goal</Text>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowGoalModal(false)}
+        >
+          <TouchableOpacity 
+            style={styles.goalModalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.goalModalTitle}>Set Daily Goal</Text>
             
-            <TextInput
-              style={styles.goalInput}
-              placeholder="Enter minutes"
-              keyboardType="number-pad"
-              value={newGoalValue}
-              onChangeText={setNewGoalValue}
-              placeholderTextColor={colors.textSecondary}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowGoalModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveGoal}
-              >
-                <Text style={styles.modalButtonText}>Save</Text>
-              </TouchableOpacity>
+            <View style={styles.goalInputContainer}>
+              <Text style={styles.goalInputLabel}>Daily Goal (minutes)</Text>
+              <TextInput
+                style={styles.goalInput}
+                value={newGoalValue}
+                onChangeText={setNewGoalValue}
+                keyboardType="numeric"
+                placeholder="Enter daily goal"
+                autoFocus
+              />
             </View>
-          </View>
-        </View>
+
+            <TouchableOpacity 
+              style={styles.goalSaveButton}
+              onPress={handleSaveGoal}
+            >
+              <Text style={styles.goalSaveButtonText}>Save Goal</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* Referral Modal */}
@@ -509,6 +510,17 @@ const HomeScreen = () => {
           loadDailyRewardsStats();
           loadDailyStats(); // Update balance display
         }}
+      />
+
+      {/* Custom Reward Modal */}
+      <RewardModal
+        visible={showRewardModal}
+        onClose={() => setShowRewardModal(false)}
+        title={rewardData.title}
+        message={rewardData.message}
+        rewardAmount={rewardData.rewardAmount}
+        rewardType={rewardData.rewardType}
+        newBalance={rewardData.newBalance}
       />
     </LinearGradient>
   );
@@ -711,17 +723,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     textAlign: 'center',
   },
-  goalInput: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    width: '100%',
-    color: colors.text,
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -750,19 +751,7 @@ const styles = StyleSheet.create({
   editIcon: {
     marginLeft: spacing.xs,
   },
-  resetButton: {
-    backgroundColor: '#FF4444',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.round,
-    marginTop: spacing.xl,
-    marginBottom: spacing.xl,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
+ 
   boostContainer: {
     marginTop: spacing.xs,
     width: '100%',
@@ -792,6 +781,54 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     textAlign: 'right',
+  },
+  // Goal Modal Styles
+  goalModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '85%',
+    maxWidth: 350,
+    alignItems: 'center',
+  },
+  goalModalTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  goalInputContainer: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  goalInputLabel: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  goalInput: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    ...typography.body,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  goalSaveButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    minWidth: 120,
+  },
+  goalSaveButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

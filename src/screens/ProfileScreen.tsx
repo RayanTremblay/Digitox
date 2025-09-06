@@ -223,27 +223,13 @@ const ProfileScreen = () => {
       setNotificationSettings(newSettings);
       await notificationService.updateSettings(updates);
       
-      if (updates.enabled !== undefined) {
-        const message = updates.enabled 
-          ? 'Notifications enabled! You\'ll receive encouraging reminders.'
-          : 'Notifications disabled. You can re-enable them anytime.';
-        Alert.alert('Notifications Updated', message);
-      }
+      // No alert needed for enable/disable toggle - users can see the change immediately
     } catch (error) {
       console.error('Error updating notification settings:', error);
       Alert.alert('Error', 'Failed to update notification settings');
     }
   };
 
-  const handleTestNotification = async () => {
-    try {
-      await notificationService.sendImmediateEncouragement();
-      Alert.alert('Test Sent!', 'Check your notifications for a motivational message.');
-    } catch (error) {
-      console.error('Error sending test notification:', error);
-      Alert.alert('Error', 'Failed to send test notification');
-    }
-  };
 
 
 
@@ -377,13 +363,6 @@ const ProfileScreen = () => {
                 <Text style={styles.settingArrow}>→</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.settingButton}
-              onPress={handleTestNotification}
-            >
-              <Text style={styles.settingText}>Test Notification</Text>
-              <Ionicons name="notifications" size={16} color={colors.text} />
-            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionTitle}>Settings</Text>
@@ -431,37 +410,38 @@ const ProfileScreen = () => {
         animationType="fade"
         onRequestClose={() => setShowGoalModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Daily Goal</Text>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowGoalModal(false)}
+        >
+          <TouchableOpacity 
+            style={styles.goalModalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.goalModalTitle}>Update Daily Goal</Text>
             
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Daily Goal (minutes)</Text>
+            <View style={styles.goalInputContainer}>
+              <Text style={styles.goalInputLabel}>Daily Goal (minutes)</Text>
               <TextInput
-                style={styles.input}
+                style={styles.goalInput}
                 value={newGoalValue}
                 onChangeText={setNewGoalValue}
                 keyboardType="numeric"
                 placeholder="Enter daily goal"
+                autoFocus
               />
             </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowGoalModal(false)}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleUpdateGoal}
-              >
-                <Text style={styles.buttonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+            <TouchableOpacity 
+              style={styles.goalSaveButton}
+              onPress={handleUpdateGoal}
+            >
+              <Text style={styles.goalSaveButtonText}>Save Goal</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* Notification Settings Modal */}
@@ -773,16 +753,16 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    width: '80%',
-    maxWidth: 400,
+    padding: spacing.md,
+    width: '70%',
+    maxWidth: 320,
   },
   modalTitle: {
     ...typography.h2,
@@ -939,6 +919,54 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text,
     marginTop: spacing.xs,
+  },
+  // Goal Modal Styles
+  goalModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '85%',
+    maxWidth: 350,
+    alignItems: 'center',
+  },
+  goalModalTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  goalInputContainer: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  goalInputLabel: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  goalInput: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    ...typography.body,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  goalSaveButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.round,
+    minWidth: 120,
+  },
+  goalSaveButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

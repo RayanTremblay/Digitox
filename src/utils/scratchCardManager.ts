@@ -56,7 +56,7 @@ export const logGiftCardWin = async (reward: ScratchReward, userInfo?: { userId?
     // Store updated wins
     await AsyncStorage.setItem(GIFT_CARD_WINS_KEY, JSON.stringify(existingWins));
     
-    console.log(`🎁 GIFT CARD WIN LOGGED: $${reward.amount} - ID: ${winRecord.id}`);
+    console.log(`GIFT CARD WIN LOGGED: $${reward.amount} - ID: ${winRecord.id}`);
     return true;
   } catch (error) {
     console.error('Error logging gift card win:', error);
@@ -103,7 +103,7 @@ export const processReward = async (reward: ScratchReward, userInfo?: { userId?:
       await addDetoxcoins(reward.amount);
       return true;
     } else if (reward.type === 'amazon') {
-      // 🎁 LOG GIFT CARD WIN FOR MANUAL PROCESSING
+      // LOG GIFT CARD WIN FOR MANUAL PROCESSING
       await logGiftCardWin(reward, userInfo);
       
       // For Amazon gift cards, we would typically:
@@ -111,7 +111,7 @@ export const processReward = async (reward: ScratchReward, userInfo?: { userId?:
       // 2. Send it to user's email
       // 3. Store the transaction in database
       // For now, we log it for manual processing
-      console.log(`🎁 Amazon gift card won: $${reward.amount} - User: ${userInfo?.email || 'unknown'} - Check Admin Screen!`);
+      console.log(`Amazon gift card won: $${reward.amount} - User: ${userInfo?.email || 'unknown'} - Check Admin Screen!`);
       
       // You could integrate with a gift card API here
       // await sendGiftCardToEmail(userEmail, reward.amount);
