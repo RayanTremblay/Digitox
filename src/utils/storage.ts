@@ -36,6 +36,57 @@ class AsyncStorageQueue {
 
 const storageQueue = new AsyncStorageQueue();
 
+// Centralized AsyncStorage wrapper to prevent memory leaks
+export const SafeAsyncStorage = {
+  async getItem(key: string): Promise<string | null> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.getItem(key);
+    });
+  },
+
+  async setItem(key: string, value: string): Promise<void> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.setItem(key, value);
+    });
+  },
+
+  async removeItem(key: string): Promise<void> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.removeItem(key);
+    });
+  },
+
+  async multiGet(keys: string[]): Promise<[string, string | null][]> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.multiGet(keys);
+    });
+  },
+
+  async multiSet(keyValuePairs: [string, string][]): Promise<void> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.multiSet(keyValuePairs);
+    });
+  },
+
+  async multiRemove(keys: string[]): Promise<void> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.multiRemove(keys);
+    });
+  },
+
+  async getAllKeys(): Promise<string[]> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.getAllKeys();
+    });
+  },
+
+  async clear(): Promise<void> {
+    return storageQueue.add(async () => {
+      return await AsyncStorage.clear();
+    });
+  }
+};
+
 const STORAGE_KEYS = {
   BALANCE: '@detoxly_balance',
   TOTAL_EARNED: '@detoxly_total_earned',
@@ -135,7 +186,7 @@ const shouldResetDaily = async (): Promise<boolean> => {
 };
 
 const shouldResetWeekly = async (): Promise<boolean> => {
-  const weekStartDate = await AsyncStorage.getItem(STORAGE_KEYS.WEEK_START_DATE);
+    const weekStartDate = await SafeAsyncStorage.getItem(STORAGE_KEYS.WEEK_START_DATE);
   if (!weekStartDate) return true;
 
   const weekStart = new Date(weekStartDate);
@@ -185,7 +236,7 @@ export const getDetoxStats = async (): Promise<DetoxStats> => {
         STORAGE_KEYS.TODAY_DETOX_TIME,
       ];
 
-      const results = await AsyncStorage.multiGet(keys);
+      const results = await SafeAsyncStorage.multiGet(keys);
       const data = Object.fromEntries(results);
 
       return {
@@ -293,7 +344,7 @@ export const updateDetoxStats = async (earnedAmount: number, timeSpent: number) 
 
 export const checkAndResetDailyStats = async (): Promise<void> => {
   try {
-    const lastResetDate = await AsyncStorage.getItem(STORAGE_KEYS.LAST_RESET_DATE);
+    const lastResetDate = await SafeAsyncStorage.getItem(STORAGE_KEYS.LAST_RESET_DATE);
     if (!lastResetDate) {
       await resetDailyStats();
       return;

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAsyncStorage } from '../utils/storage';
 import { auth, db } from '../../firebase/firebaseConfig';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { DetoxStats, WeeklyProgress } from '../utils/storage';
@@ -28,11 +29,15 @@ interface UserCloudData {
 class SyncService {
   private syncInProgress = false;
   private lastSyncTime = 0;
-  private readonly SYNC_COOLDOWN = 60000; // 60 seconds (increased to reduce connection attempts)
+  private readonly SYNC_COOLDOWN = 120000; // 120 seconds (increased to reduce connection attempts)
   private pendingSync = false; // Track if we need to sync when back online
   private connectionRetryCount = 0;
   private readonly MAX_RETRIES = 3;
   private isOnline = true;
+  private lastOfflineCheck = 0;
+  private readonly OFFLINE_CHECK_INTERVAL = 60000; // 60 seconds
+  private profileCache: { [userId: string]: { profile: any; timestamp: number } } = {};
+  private readonly PROFILE_CACHE_DURATION = 60000; // 1 minute
 
   /**
    * Sync local data to Firebase and get updated data
@@ -132,18 +137,33 @@ class SyncService {
    */
   async getUserProfileFromAuth(): Promise<{ firstName: string; lastName: string; displayName: string } | null> {
     try {
-      console.log('getUserProfileFromAuth: Starting...');
-      console.log('getUserProfileFromAuth: Auth object:', auth);
-      console.log('getUserProfileFromAuth: Current user:', auth.currentUser);
-      
       if (!auth.currentUser) {
         console.log('getUserProfileFromAuth: No current user');
         return null;
       }
+
+      const userId = auth.currentUser.uid;
       
-      console.log('getUserProfileFromAuth: Current user ID:', auth.currentUser.uid);
+      // Check cache first
+      const cached = this.profileCache[userId];
+      if (cached && (Date.now() - cached.timestamp) < this.PROFILE_CACHE_DURATION) {
+        console.log('getUserProfileFromAuth: Using cached profile');
+        return cached.profile;
+      }
+      
+      console.log('getUserProfileFromAuth: Starting...');
+      console.log('getUserProfileFromAuth: Current user ID:', userId);
       console.log('getUserProfileFromAuth: Current user email:', auth.currentUser.email);
-      console.log('getUserProfileFromAuth: Current user displayName:', auth.currentUser.displayName);
+      
+      // Check if we're offline first to avoid unnecessary Firebase calls
+      if (!this.isOnline && !this.shouldCheckConnection()) {
+        console.log('getUserProfileFromAuth: Device is offline, creating offline profile');
+        const offlineProfile = this.createOfflineProfile();
+        if (offlineProfile) {
+          this.profileCache[userId] = { profile: offlineProfile, timestamp: Date.now() };
+        }
+        return offlineProfile;
+      }
       
       const userDocRef = doc(db, 'users', auth.currentUser.uid);
       console.log('getUserProfileFromAuth: Getting document from Firebase...');
@@ -152,7 +172,7 @@ class SyncService {
       const userDoc = await Promise.race([
         getDoc(userDocRef),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Firebase request timeout')), 15000)
+          setTimeout(() => reject(new Error('Firebase request timeout')), 5000)
         )
       ]) as any;
       
@@ -203,6 +223,9 @@ class SyncService {
             displayName: data.displayName || `${data.firstName} ${data.lastName}`,
           };
           console.log('getUserProfileFromAuth: Returning existing valid profile:', profile);
+          
+          // Cache the result
+          this.profileCache[userId] = { profile, timestamp: Date.now() };
           return profile;
         }
       }
@@ -241,24 +264,62 @@ class SyncService {
     } catch (error) {
       console.error('getUserProfileFromAuth: Error getting profile from auth:', error);
       
-      // If Firebase is completely offline, create a basic profile from auth data
-      if (auth.currentUser) {
-        console.log('getUserProfileFromAuth: Creating offline fallback profile');
-        const email = auth.currentUser.email || '';
-        const emailName = email.split('@')[0] || 'User';
-        
-        const offlineProfile = {
-          firstName: emailName,
-          lastName: '',
-          displayName: emailName,
-        };
-        
-        console.log('getUserProfileFromAuth: Offline profile created:', offlineProfile);
-        return offlineProfile;
+      // Mark as offline if Firebase connection fails
+      if (error.message?.includes('offline') || error.message?.includes('Failed to get document')) {
+        this.isOnline = false;
+        console.log('getUserProfileFromAuth: Marked as offline due to Firebase error');
       }
       
+      // Create offline fallback profile
+      const offlineProfile = this.createOfflineProfile();
+      if (offlineProfile) {
+        this.profileCache[userId] = { profile: offlineProfile, timestamp: Date.now() };
+      }
+      return offlineProfile;
+    }
+  }
+
+  /**
+   * Create a basic profile from auth data when offline
+   */
+  private createOfflineProfile(): { firstName: string; lastName: string; displayName: string } | null {
+    if (!auth.currentUser) {
       return null;
     }
+    
+    console.log('getUserProfileFromAuth: Creating offline fallback profile');
+    const email = auth.currentUser.email || '';
+    const emailName = email.split('@')[0] || 'User';
+    
+    const offlineProfile = {
+      firstName: emailName,
+      lastName: '',
+      displayName: emailName,
+    };
+    
+    console.log('getUserProfileFromAuth: Offline profile created:', offlineProfile);
+    return offlineProfile;
+  }
+
+  /**
+   * Check if we should attempt to reconnect to Firebase
+   */
+  private shouldCheckConnection(): boolean {
+    const now = Date.now();
+    if (now - this.lastOfflineCheck > this.OFFLINE_CHECK_INTERVAL) {
+      this.lastOfflineCheck = now;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Reset offline status when connection is restored
+   */
+  private resetOfflineStatus(): void {
+    this.isOnline = true;
+    this.connectionRetryCount = 0;
+    console.log('SyncService: Connection restored, resetting offline status');
   }
 
   /**
@@ -278,7 +339,7 @@ class SyncService {
         'userProfile',
       ];
 
-      const values = await AsyncStorage.multiGet(keys);
+      const values = await SafeAsyncStorage.multiGet(keys);
       const data: any = {};
 
       values.forEach(([key, value]) => {
@@ -349,7 +410,7 @@ class SyncService {
         updates.push(['userProfile', JSON.stringify(data.profile)]);
       }
 
-      await AsyncStorage.multiSet(updates);
+      await SafeAsyncStorage.multiSet(updates);
     } catch (error) {
       console.error('Error saving local user data:', error);
     }
