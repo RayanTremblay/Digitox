@@ -28,8 +28,11 @@ interface UserCloudData {
 class SyncService {
   private syncInProgress = false;
   private lastSyncTime = 0;
-  private readonly SYNC_COOLDOWN = 30000; // 30 seconds
+  private readonly SYNC_COOLDOWN = 60000; // 60 seconds (increased to reduce connection attempts)
   private pendingSync = false; // Track if we need to sync when back online
+  private connectionRetryCount = 0;
+  private readonly MAX_RETRIES = 3;
+  private isOnline = true;
 
   /**
    * Sync local data to Firebase and get updated data
@@ -48,7 +51,11 @@ class SyncService {
       return { success: false, error: 'Sync cooldown active' };
     }
 
-    // Note: We'll handle offline errors in the catch block instead of pre-checking
+    // Check if we should skip sync due to repeated failures
+    if (this.connectionRetryCount >= this.MAX_RETRIES && !forceSync) {
+      console.log('Sync skipped: Too many connection failures, will retry later');
+      return { success: false, error: 'Connection failures limit reached' };
+    }
 
     let localData: Partial<UserCloudData> = {};
     
@@ -62,11 +69,11 @@ class SyncService {
       // Get current local data
       localData = await this.getLocalUserData();
       
-      // Get cloud data with timeout
+      // Get cloud data with shorter timeout to prevent hanging
       const cloudDoc = await Promise.race([
         getDoc(userDocRef),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Firebase request timeout')), 30000)
+          setTimeout(() => reject(new Error('Firebase request timeout')), 10000) // Reduced from 30s to 10s
         )
       ]) as any;
       
@@ -86,6 +93,8 @@ class SyncService {
 
       console.log('User data synced successfully');
       this.markSyncCompleted(); // Clear pending sync flag
+      this.connectionRetryCount = 0; // Reset retry count on success
+      this.isOnline = true;
       return { success: true };
 
     } catch (error: any) {
@@ -93,6 +102,8 @@ class SyncService {
       if (error.message?.includes('offline') || error.message?.includes('Failed to get document') || error.message?.includes('timeout')) {
         console.log('Sync skipped: Firebase is offline or timeout - will retry when back online');
         this.pendingSync = true; // Mark that we need to sync when back online
+        this.connectionRetryCount++; // Increment retry count
+        this.isOnline = false;
         
         // Try to save local data anyway to ensure we have something
         try {
@@ -109,6 +120,7 @@ class SyncService {
       }
       
       console.error('Sync failed:', error);
+      this.connectionRetryCount++; // Increment retry count for other errors too
       return { success: false, error: error.message };
     } finally {
       this.syncInProgress = false;

@@ -70,14 +70,19 @@ if (getApps().length === 0) {
 let auth: Auth;
 try {
   if (Platform.OS === 'ios' || Platform.OS === 'android') {
-          console.log('Initializing auth for mobile platform');
-    // Try to import AsyncStorage
+    console.log('Initializing auth for mobile platform');
+    // Try to import AsyncStorage and use it with initializeAuth
     let AsyncStorage;
     try {
       AsyncStorage = require('@react-native-async-storage/async-storage').default;
       console.log('AsyncStorage imported successfully');
       
-      auth = initializeAuth(app);
+      // Import getReactNativePersistence from firebase/auth
+      const { getReactNativePersistence } = require('firebase/auth');
+      
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage)
+      });
       console.log('Auth initialized with AsyncStorage persistence');
     } catch (asyncStorageError) {
       console.warn('AsyncStorage import failed:', (asyncStorageError as Error).message);
@@ -89,11 +94,11 @@ try {
     auth = getAuth(app);
   }
 } catch (authError) {
-        console.error('Auth initialization error:', (authError as Error).message);
+  console.error('Auth initialization error:', (authError as Error).message);
   console.log('🔄 Attempting fallback auth initialization');
   try {
     auth = getAuth(app);
-          console.log('Fallback auth successful');
+    console.log('Fallback auth successful');
   } catch (fallbackError) {
     console.error('💥 Complete auth failure:', (fallbackError as Error).message);
     throw fallbackError;

@@ -1,6 +1,41 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ErrorHandler from './errorHandler';
 
+// AsyncStorage operation queue to prevent memory leaks
+class AsyncStorageQueue {
+  private queue: Array<() => Promise<any>> = [];
+  private processing = false;
+
+  async add<T>(operation: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await operation();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.process();
+    });
+  }
+
+  private async process() {
+    if (this.processing || this.queue.length === 0) return;
+    
+    this.processing = true;
+    while (this.queue.length > 0) {
+      const operation = this.queue.shift();
+      if (operation) {
+        await operation();
+      }
+    }
+    this.processing = false;
+  }
+}
+
+const storageQueue = new AsyncStorageQueue();
+
 const STORAGE_KEYS = {
   BALANCE: '@detoxly_balance',
   TOTAL_EARNED: '@detoxly_total_earned',
@@ -133,55 +168,46 @@ const resetWeeklyStats = async () => {
 };
 
 export const getDetoxStats = async (): Promise<DetoxStats> => {
-  const operation = async (): Promise<DetoxStats> => {
-    // Check if we need to reset daily stats
-    if (await shouldResetDaily()) {
-      await resetDailyStats();
+  return storageQueue.add(async (): Promise<DetoxStats> => {
+    try {
+      // Check if we need to reset daily stats
+      if (await shouldResetDaily()) {
+        await resetDailyStats();
+      }
+
+      // Use multiGet for better performance and to prevent callback leaks
+      const keys = [
+        DETOXCOINS_BALANCE_KEY,
+        TOTAL_DETOXCOINS_EARNED_KEY,
+        STORAGE_KEYS.TOTAL_TIME,
+        STORAGE_KEYS.DAILY_TIME,
+        STORAGE_KEYS.CURRENT_STREAK,
+        STORAGE_KEYS.TODAY_DETOX_TIME,
+      ];
+
+      const results = await AsyncStorage.multiGet(keys);
+      const data = Object.fromEntries(results);
+
+      return {
+        balance: data[DETOXCOINS_BALANCE_KEY] ? parseFloat(data[DETOXCOINS_BALANCE_KEY]) : 1000,
+        totalEarned: data[TOTAL_DETOXCOINS_EARNED_KEY] ? parseFloat(data[TOTAL_DETOXCOINS_EARNED_KEY]) : 0,
+        totalTimeSaved: data[STORAGE_KEYS.TOTAL_TIME] ? parseInt(data[STORAGE_KEYS.TOTAL_TIME]) : 0,
+        dailyTimeSaved: data[STORAGE_KEYS.DAILY_TIME] ? parseInt(data[STORAGE_KEYS.DAILY_TIME]) : 0,
+        currentStreak: data[STORAGE_KEYS.CURRENT_STREAK] ? parseInt(data[STORAGE_KEYS.CURRENT_STREAK]) : 0,
+        todayDetoxTime: data[STORAGE_KEYS.TODAY_DETOX_TIME] ? parseInt(data[STORAGE_KEYS.TODAY_DETOX_TIME]) : 0,
+      };
+    } catch (error) {
+      console.error('Error in getDetoxStats:', error);
+      return { 
+        balance: 1000, 
+        totalEarned: 0, 
+        totalTimeSaved: 0, 
+        dailyTimeSaved: 0, 
+        currentStreak: 0,
+        todayDetoxTime: 0,
+      };
     }
-
-    const [balance, totalEarned, totalTime, dailyTime, currentStreak, todayDetoxTime] = await Promise.all([
-      getDetoxcoinsBalance(), // Use new Detoxcoins balance system
-      getTotalDetoxcoinsEarned(), // Use new Detoxcoins total earned system
-      AsyncStorage.getItem(STORAGE_KEYS.TOTAL_TIME),
-      AsyncStorage.getItem(STORAGE_KEYS.DAILY_TIME),
-      AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STREAK),
-      AsyncStorage.getItem(STORAGE_KEYS.TODAY_DETOX_TIME),
-    ]);
-
-    return {
-      balance: balance,
-      totalEarned: totalEarned,
-      totalTimeSaved: totalTime ? parseInt(totalTime) : 0,
-      dailyTimeSaved: dailyTime ? parseInt(dailyTime) : 0,
-      currentStreak: currentStreak ? parseInt(currentStreak) : 0,
-      todayDetoxTime: todayDetoxTime ? parseInt(todayDetoxTime) : 0,
-    };
-  };
-
-  const result = await ErrorHandler.handleAsync(
-    operation,
-    'Get User Stats',
-    false // Don't show alert for stats loading
-  );
-
-  if (result.success && result.data) {
-    return result.data;
-  }
-
-  // Return default stats on error
-  ErrorHandler.logError(
-    result.error || new Error('Failed to load stats'),
-    'getDetoxStats'
-  );
-
-  return { 
-    balance: 0, 
-    totalEarned: 0, 
-    totalTimeSaved: 0, 
-    dailyTimeSaved: 0, 
-    currentStreak: 0,
-    todayDetoxTime: 0,
-  };
+  });
 };
 
 export const getWeeklyProgress = async (): Promise<WeeklyProgress> => {

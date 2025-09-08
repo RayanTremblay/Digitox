@@ -1,15 +1,25 @@
 import { Alert } from 'react-native';
-import { 
-  RewardedAd, 
-  RewardedAdEventType, 
-  TestIds,
-  AdEventType
-} from 'react-native-google-mobile-ads';
+
+// Conditionally import Google Mobile Ads to avoid errors when not available
+let RewardedAd: any = null;
+let RewardedAdEventType: any = null;
+let TestIds: any = null;
+let AdEventType: any = null;
+
+try {
+  const mobileAds = require('react-native-google-mobile-ads');
+  RewardedAd = mobileAds.RewardedAd;
+  RewardedAdEventType = mobileAds.RewardedAdEventType;
+  TestIds = mobileAds.TestIds;
+  AdEventType = mobileAds.AdEventType;
+} catch (error) {
+  console.warn('Google Mobile Ads not available in adManager:', (error as Error).message);
+}
 
 // AdMob ad unit IDs
 const AD_UNIT_IDS = {
   // Use test ads in development, real ads in production
-  REWARDED: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3131985902128037/7113058829',
+  REWARDED: __DEV__ ? (TestIds?.REWARDED || 'test-rewarded-ad-unit-id') : 'ca-app-pub-3131985902128037/7113058829',
 };
 
 export interface AdReward {
@@ -18,7 +28,7 @@ export interface AdReward {
 }
 
 class AdManager {
-  private rewardedAd: RewardedAd | null = null;
+  private rewardedAd: any = null;
   private isAdLoaded: boolean = false;
   private isLoadingAd: boolean = false;
   private isInitialized: boolean = false;
@@ -27,6 +37,13 @@ class AdManager {
   async initialize(): Promise<boolean> {
     try {
       console.log('Ad Manager: Initializing...');
+      
+      // Check if Google Mobile Ads is available
+      if (!RewardedAd) {
+        console.log('Ad Manager: Google Mobile Ads not available, skipping initialization');
+        this.isInitialized = false;
+        return false;
+      }
       
       // Create rewarded ad instance
       this.rewardedAd = RewardedAd.createForAdRequest(AD_UNIT_IDS.REWARDED);
@@ -45,7 +62,7 @@ class AdManager {
   }
 
   private setupAdEventListeners(): void {
-    if (!this.rewardedAd) return;
+    if (!this.rewardedAd || !RewardedAdEventType || !AdEventType) return;
 
     this.rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
       console.log('Rewarded ad loaded');
@@ -53,19 +70,24 @@ class AdManager {
       this.isLoadingAd = false;
     });
 
-    this.rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
+    this.rewardedAd.addAdEventListener(AdEventType.ERROR, (error: any) => {
       console.error('Rewarded ad error:', error);
       this.isAdLoaded = false;
       this.isLoadingAd = false;
     });
 
-    this.rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
+    this.rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward: any) => {
       console.log('User earned reward:', reward);
     });
   }
 
   // Load a rewarded ad
   async loadRewardedAd(): Promise<boolean> {
+    if (!this.isInitialized || !RewardedAd) {
+      console.log('Ad Manager: Google Mobile Ads not available, cannot load ads');
+      return false;
+    }
+
     if (this.isLoadingAd || this.isAdLoaded || !this.rewardedAd) {
       return this.isAdLoaded;
     }
@@ -89,8 +111,8 @@ class AdManager {
     console.log('📊 Ad Manager: Current state - isAdLoaded:', this.isAdLoaded, 'rewardedAd exists:', !!this.rewardedAd);
     
     // STRICT: Check if SDK is properly initialized first
-    if (!this.isInitialized) {
-      console.log('Ad Manager: SDK not initialized, cannot show ads');
+    if (!this.isInitialized || !RewardedAd) {
+      console.log('Ad Manager: SDK not initialized or Google Mobile Ads not available, cannot show ads');
       return { success: false };
     }
     
@@ -158,7 +180,7 @@ class AdManager {
         }, 30000);
         
         // Try to show the ad
-        this.rewardedAd!.show().catch((error) => {
+        this.rewardedAd!.show().catch((error: any) => {
           cleanup();
           if (!adCompleted) {
             adCompleted = true;

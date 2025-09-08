@@ -6,7 +6,13 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { SplashScreen } from './app/components/SplashScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import mobileAds from 'react-native-google-mobile-ads';
+// Conditionally import Google Mobile Ads to avoid errors when not available
+let mobileAds: any = null;
+try {
+  mobileAds = require('react-native-google-mobile-ads').default;
+} catch (error) {
+  console.warn('Google Mobile Ads not available:', error.message);
+}
 import notificationService from './src/services/notificationService';
 import achievementService from './src/services/achievementService';
 
@@ -47,13 +53,17 @@ const AppContent = () => {
 export default function App() {
   useEffect(() => {
     const initializeServices = async () => {
-      // Initialize Google Mobile Ads SDK
-      try {
-        const adapterStatuses = await mobileAds().initialize();
-        console.log('Google Mobile Ads SDK initialized successfully');
-        console.log('Adapter statuses:', adapterStatuses);
-      } catch (error) {
-        console.error('Google Mobile Ads SDK initialization failed:', error);
+      // Initialize Google Mobile Ads SDK (only if available)
+      if (mobileAds) {
+        try {
+          const adapterStatuses = await mobileAds().initialize();
+          console.log('Google Mobile Ads SDK initialized successfully');
+          console.log('Adapter statuses:', adapterStatuses);
+        } catch (error) {
+          console.error('Google Mobile Ads SDK initialization failed:', error);
+        }
+      } else {
+        console.log('Google Mobile Ads SDK not available, skipping initialization');
       }
 
       // Initialize notification service
